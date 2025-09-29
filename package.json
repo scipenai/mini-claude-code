@@ -1,0 +1,50 @@
+{
+  "name": "@scipen/mini-claude-code",
+  "version": "0.1.0",
+  "description": "A lightweight minimal implementation of Claude Code CLI tool",
+  "keywords": [
+    "claude",
+    "ai",
+    "coding",
+    "agent",
+    "cli",
+    "development",
+    "automation"
+  ],
+  "author": "SciPen AI <info@scipen.ai>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "bin": {
+    "mini-claude-code": "dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scipenai/mini-claude-code.git"
+  },
+  "bugs": {
+    "url": "https://github.com/scipenai/mini-claude-code/issues"
+  },
+  "homepage": "https://github.com/scipenai/mini-claude-code#readme",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.64.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
