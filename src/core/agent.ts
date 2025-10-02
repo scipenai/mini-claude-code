@@ -1,9 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL, WORKDIR } from '../config/environment';
-import { Spinner } from './spinner';
+import ora, { Ora } from 'ora';
 import { getTools } from '../tools/tools';
 import { dispatchTool } from '../tools/dispatcher';
 import { logErrorDebug } from '../utils/logger';
+import { ui } from '../utils/ui';
 
 // ---------- SDK client ----------
 const apiKey = ANTHROPIC_API_KEY;
@@ -32,9 +33,13 @@ const SYSTEM = (
 
 // ---------- Core loop ----------
 export async function query(messages: any[], opts: any = {}): Promise<any[]> {
+    let spinner: Ora | null = null;
+
     while (true) {
-        const spinner = new Spinner();
-        spinner.start();
+        spinner = ora({
+            text: 'Thinking...',
+            color: 'cyan',
+        }).start();
 
         try {
             const res: Anthropic.Message = await anthropic.messages.create({
@@ -46,13 +51,20 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
                 ...(opts.tool_choice ? { tool_choice: opts.tool_choice } : {})
             });
 
+            spinner.stop();
+
             const toolUses: any[] = [];
+            let hasTextOutput = false;
 
             try {
                 for (const block of res.content) {
                     const btype = (block as any).type;
                     if (btype === "text") {
-                        console.log((block as any).text || "");
+                        const text = (block as any).text || "";
+                        if (text.trim()) {
+                            ui.printAssistantText(text);
+                            hasTextOutput = true;
+                        }
                     }
                     if (btype === "tool_use") {
                         toolUses.push(block);
@@ -73,7 +85,34 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
             }
 
             if (res.stop_reason === "tool_use") {
-                const results = await Promise.all(toolUses.map(tu => dispatchTool(tu)));
+                // Execute tools with visual feedback
+                const results = await Promise.all(
+                    toolUses.map(async (tu) => {
+                        const toolName = (tu as any).name;
+                        const toolInput = (tu as any).input;
+                        
+                        ui.printToolUse(toolName, toolInput);
+                        
+                        const startTime = Date.now();
+                        try {
+                            const result = await dispatchTool(tu);
+                            const duration = Date.now() - startTime;
+                            
+                            // Extract result message
+                            const resultText = typeof result.content === 'string' 
+                                ? result.content 
+                                : 'Done';
+                            
+                            ui.printToolResult(true, resultText, duration);
+                            return result;
+                        } catch (error: any) {
+                            const duration = Date.now() - startTime;
+                            ui.printToolResult(false, error.message || 'Execution failed', duration);
+                            throw error;
+                        }
+                    })
+                );
+                
                 messages.push({ role: "assistant", content: res.content });
                 messages.push({ role: "user", content: results });
                 continue;
@@ -82,8 +121,11 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
             messages.push({ role: "assistant", content: res.content });
             return messages;
 
-        } finally {
-            spinner.stop();
+        } catch (error: any) {
+            if (spinner) {
+                spinner.stop();
+            }
+            throw error;
         }
     }
 }
