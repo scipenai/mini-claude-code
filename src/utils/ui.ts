@@ -48,8 +48,10 @@ export const ui = {
         console.log(chalk.cyan('  /clear   ') + chalk.dim('- Clear screen'));
         console.log(chalk.cyan('  /history ') + chalk.dim('- Show conversation history'));
         console.log(chalk.cyan('  /reset   ') + chalk.dim('- Reset conversation history'));
+        console.log(chalk.cyan('  /compact ') + chalk.dim('- Compress conversation to a summary (manual)'));
+        console.log(chalk.cyan('  /stats   ') + chalk.dim('- Show context usage statistics'));
         console.log(chalk.cyan('  exit/quit') + chalk.dim('- Exit the program'));
-        console.log(chalk.dim('\n💡 Tip: Press Enter to send your message\n'));
+        console.log(chalk.dim('\n💡 Tip: Context will auto-compress at 92% capacity\n'));
     },
 
     printTips() {
@@ -175,6 +177,71 @@ export const ui = {
 
     printSeparator() {
         console.log(chalk.dim('─'.repeat(60)));
+    },
+
+    /**
+     * Print status bar with MCP and context compression info
+     * @param mcpServerCount - Number of connected MCP servers
+     * @param contextPercent - Context usage percentage (0-100)
+     * @param messageCount - Number of messages in history
+     */
+    printStatusBar(mcpServerCount: number, contextPercent: number, messageCount: number) {
+        const terminalWidth = process.stdout.columns || 80;
+        
+        // MCP status
+        const mcpIcon = mcpServerCount > 0 ? '🔌' : '⚪';
+        const mcpColor = mcpServerCount > 0 ? chalk.green : chalk.gray;
+        const mcpText = mcpColor(`${mcpIcon} MCP: ${mcpServerCount}`);
+        
+        // Context status with color coding
+        let contextColor;
+        let contextIcon;
+        if (contextPercent >= 92) {
+            contextColor = chalk.red.bold;
+            contextIcon = '🔴';
+        } else if (contextPercent >= 75) {
+            contextColor = chalk.yellow;
+            contextIcon = '🟡';
+        } else {
+            contextColor = chalk.green;
+            contextIcon = '🟢';
+        }
+        const contextText = contextColor(`${contextIcon} Context: ${contextPercent}%`);
+        
+        // Messages count
+        const msgText = chalk.cyan(`💬 Messages: ${messageCount}`);
+        
+        // Build status bar
+        const separator = chalk.dim(' │ ');
+        const statusContent = `${mcpText}${separator}${contextText}${separator}${msgText}`;
+        
+        // Remove ANSI codes to calculate actual length
+        const plainText = statusContent.replace(/\u001b\[[0-9;]*m/g, '');
+        const contentLength = plainText.length;
+        
+        // Create padding
+        const padding = Math.max(0, terminalWidth - contentLength - 4);
+        const paddingStr = ' '.repeat(padding);
+        
+        // Print status bar
+        console.log(chalk.dim('┌' + '─'.repeat(terminalWidth - 2) + '┐'));
+        console.log(chalk.dim('│ ') + statusContent + paddingStr + chalk.dim(' │'));
+        console.log(chalk.dim('└' + '─'.repeat(terminalWidth - 2) + '┘'));
+    },
+
+    /**
+     * Update status bar in place (overwrites previous lines)
+     * @param mcpServerCount - Number of connected MCP servers
+     * @param contextPercent - Context usage percentage (0-100)
+     * @param messageCount - Number of messages in history
+     */
+    updateStatusBar(mcpServerCount: number, contextPercent: number, messageCount: number) {
+        // Move cursor up 3 lines to overwrite previous status bar
+        process.stdout.write('\x1b[3A');
+        // Clear those lines
+        process.stdout.write('\x1b[0J');
+        // Print new status bar
+        this.printStatusBar(mcpServerCount, contextPercent, messageCount);
     },
 };
 
