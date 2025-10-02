@@ -20,6 +20,7 @@ Mini Claude Code Agent 是 Claude Code 的简化版本，它允许 AI 模型通�
 - **编程助手**：使用大型语言模型作为核心 AI 引擎
 - **文件操作**：支持读取、写入和编辑文件
 - **Shell 执行**：可以在项目工作区中执行 shell 命令
+- **MCP 集成**：支持 Model Context Protocol，可连接多种 MCP 服务器扩展功能
 - **安全限制**：防止路径遍历和危险命令执行
 - **实时反馈**：在执行过程中提供视觉反馈
 - **模块化架构**：组织良好的代码库，便于维护和扩展
@@ -29,12 +30,33 @@ Mini Claude Code Agent 是 Claude Code 的简化版本，它允许 AI 模型通�
 - TypeScript
 - Node.js
 - Anthropic AI SDK
+- MCP (Model Context Protocol) SDK
 
 ## 前提条件
 
 - Node.js >= 16.0.0
 - Anthropic 兼容的 API 密钥
 - 代理 LLM 模型
+
+## 快速启动
+
+最快的启动方式：
+
+1. 设置环境变量：
+
+```bash
+export ANTHROPIC_API_KEY="your-api-key-here"
+export ANTHROPIC_BASE_URL="your-anthropic-compatible-api-base-url"
+export ANTHROPIC_MODEL="model-name"
+```
+
+2. 使用 npx 直接运行（无需安装）：
+
+```bash
+npx -y @scipen/mini-claude-code
+```
+
+就是这么简单！助手会启动，你可以开始与它交互。
 
 ## 安装
 
@@ -97,6 +119,47 @@ npm start
 
 输入 `exit` 或 `quit` 退出程序。
 
+## MCP 集成
+
+Mini Claude Code 支持 Model Context Protocol (MCP)，可以连接各种 MCP 服务器来扩展功能。
+
+### 配置 MCP 服务器
+
+1. 在项目根目录创建 `.mcp.json` 文件：
+
+```bash
+cp .mcp.example.json .mcp.json
+```
+
+2. 编辑配置文件添加你需要的 MCP 服务器。
+
+支持三种传输方式：
+- **stdio**: 本地进程通信（默认）
+- **streamable_http**: HTTP 远程服务器（推荐）
+- **sse**: 旧版 HTTP/SSE（已弃用）
+
+```json
+{
+  "mcpServers": [
+    {
+      "name": "filesystem",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/directory"]
+    },
+    {
+      "name": "remote-service",
+      "transport": "streamable_http",
+      "url": "https://your-mcp-server.example.com/mcp"
+    }
+  ]
+}
+```
+
+详细的 MCP 配置和使用说明，请参阅：
+- [MCP 集成指南](docs/MCP_GUIDE_zh.md)
+- [MCP 传输方式详解](docs/MCP_TRANSPORT_zh.md)
+
 ### 交互示例
 
 ```
@@ -127,10 +190,12 @@ Result: wrote 26 bytes to hello.js
 ```
 src/
 ├── config/              # 配置和环境变量
-│   └── environment.ts    # 环境配置
+│   ├── environment.ts    # 环境配置
+│   └── mcp-config.ts     # MCP 服务器配置
 ├── core/                # 核心助手逻辑
 │   ├── agent.ts          # 主要助手逻辑
-│   ├── spinner.ts        # CLI 旋转器用于视觉反馈
+│   ├── mcp-client.ts     # MCP 客户端管理器
+│   └── spinner.ts        # CLI 旋转器用于视觉反馈
 ├── tools/               # 工具实现
 │   ├── bash.ts           # Shell 命令执行
 │   ├── dispatcher.ts     # 工具分发器

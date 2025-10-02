@@ -6,7 +6,7 @@ export class Spinner {
     private frameIndex: number = 0;
     private intervalId: NodeJS.Timeout | null = null;
 
-    constructor(label: string = "等待模型响应") {
+    constructor(label: string = "Waiting for model response") {
         this.label = label;
         this.frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     }

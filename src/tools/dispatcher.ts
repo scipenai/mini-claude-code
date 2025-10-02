@@ -4,9 +4,10 @@ import { runBash } from './bash';
 import { runRead } from './readFile';
 import { runWrite } from './writeFile';
 import { runEdit } from './editText';
+import { mcpClientManager } from '../core/mcp-client';
 
 // ---------- Tool Dispatcher ----------
-export function dispatchTool(toolUse: any): any {
+export async function dispatchTool(toolUse: any): Promise<any> {
     try {
         const name = toolUse.name;
         const inputObj = toolUse.input || {};
@@ -38,6 +39,25 @@ export function dispatchTool(toolUse: any): any {
             prettySubLine(out);
             return { type: "tool_result", tool_use_id: toolUseId, content: out };
         }
+        
+        // Check if it's an MCP tool (format: serverName__toolName)
+        if (name.includes('__')) {
+            prettyToolLine("MCP", name);
+            try {
+                const out = await mcpClientManager.callTool(name, inputObj);
+                prettySubLine(clampText(out, 2000));
+                return { type: "tool_result", tool_use_id: toolUseId, content: out };
+            } catch (error: any) {
+                prettySubLine(`Error: ${error.message}`);
+                return {
+                    type: "tool_result",
+                    tool_use_id: toolUseId,
+                    content: error.message,
+                    is_error: true
+                };
+            }
+        }
+        
         return {
             type: "tool_result",
             tool_use_id: toolUseId,

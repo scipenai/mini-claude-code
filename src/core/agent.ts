@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL, WORKDIR } from '../config/environment';
 import { Spinner } from './spinner';
-import { tools } from '../tools/tools';
+import { getTools } from '../tools/tools';
 import { dispatchTool } from '../tools/dispatcher';
 import { logErrorDebug } from '../utils/logger';
 
@@ -41,7 +41,7 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
                 model: ANTHROPIC_MODEL,
                 system: SYSTEM,
                 messages: messages,
-                tools: tools,
+                tools: getTools(),
                 max_tokens: 16000,
                 ...(opts.tool_choice ? { tool_choice: opts.tool_choice } : {})
             });
@@ -73,7 +73,7 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
             }
 
             if (res.stop_reason === "tool_use") {
-                const results = toolUses.map(tu => dispatchTool(tu));
+                const results = await Promise.all(toolUses.map(tu => dispatchTool(tu)));
                 messages.push({ role: "assistant", content: res.content });
                 messages.push({ role: "user", content: results });
                 continue;

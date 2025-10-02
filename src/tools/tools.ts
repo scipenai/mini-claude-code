@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { mcpClientManager } from '../core/mcp-client';
 
-// ---------- Tool Definitions ----------
-export const tools: Anthropic.Tool[] = [
+// ---------- Base Tool Definitions ----------
+export const baseTools: Anthropic.Tool[] = [
     {
         name: "bash",
         description: (
@@ -71,3 +72,25 @@ export const tools: Anthropic.Tool[] = [
         },
     },
 ];
+
+/**
+ * Get all available tools (including base tools and MCP tools)
+ */
+export function getTools(): Anthropic.Tool[] {
+    const tools: Anthropic.Tool[] = [...baseTools];
+    
+    // Add MCP tools
+    const mcpTools = mcpClientManager.getAllTools();
+    for (const mcpTool of mcpTools) {
+        tools.push({
+            name: mcpTool.name,
+            description: mcpTool.description || '',
+            input_schema: mcpTool.inputSchema as any,
+        });
+    }
+    
+    return tools;
+}
+
+// For compatibility, export tools function
+export const tools = getTools();

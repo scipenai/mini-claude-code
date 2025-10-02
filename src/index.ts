@@ -3,10 +3,20 @@
 import readline from 'readline';
 import { query } from './core/agent';
 import { WORKDIR } from './config/environment';
+import { mcpClientManager } from './core/mcp-client';
+import { loadMCPConfig } from './config/mcp-config';
 
 async function main() {
     console.log(`Tiny Coding Agent — cwd: ${WORKDIR}`);
     console.log('Type "exit" or "quit" to leave.\n');
+
+    // Initialize MCP client
+    try {
+        const mcpConfig = await loadMCPConfig();
+        await mcpClientManager.initialize(mcpConfig);
+    } catch (error: any) {
+        console.error('⚠️  Failed to initialize MCP client:', error.message);
+    }
 
     const history: any[] = [];
     const rl = readline.createInterface({
@@ -36,6 +46,9 @@ async function main() {
     }
 
     rl.close();
+    
+    // Close MCP connections
+    await mcpClientManager.closeAll();
 }
 
 if (require.main === module) {

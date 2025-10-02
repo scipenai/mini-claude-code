@@ -1,6 +1,6 @@
 {
   "name": "@scipen/mini-claude-code",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A lightweight minimal implementation of Claude Code CLI tool",
   "keywords": [
     "claude",
@@ -37,7 +37,8 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.64.0"
+    "@anthropic-ai/sdk": "^0.64.0",
+    "@modelcontextprotocol/sdk": "^1.18.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -1,0 +1,54 @@
+{
+  "mcpServers": [
+    {
+      "comment": "========== stdio Transport Examples (Local Process) ==========",
+      "name": "filesystem",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/directory"],
+      "comment2": "Filesystem server - Provides file operation tools"
+    },
+    {
+      "name": "github",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "your-github-token-here"
+      },
+      "comment": "GitHub server - Provides GitHub API access"
+    },
+    {
+      "name": "brave-search",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "your-brave-api-key-here"
+      },
+      "comment": "Brave search server - Provides web search functionality"
+    },
+    {
+      "comment": "========== HTTP Transport Examples (Remote Server) ==========",
+      "name": "streamable-http-server",
+      "transport": "streamable_http",
+      "url": "http://localhost:3000/mcp",
+      "comment2": "Streamable HTTP server - New standard (Recommended)"
+    },
+    {
+      "name": "cloud-mcp-service",
+      "transport": "streamable_http",
+      "url": "https://your-mcp-server.example.com/mcp",
+      "comment": "Cloud MCP service - Connect via Streamable HTTP"
+    },
+    {
+      "comment": "========== SSE Transport (Deprecated, backward compatibility only) ==========",
+      "name": "legacy-sse-server",
+      "transport": "sse",
+      "url": "http://localhost:8080/sse",
+      "comment2": "Legacy SSE server - For backward compatibility only"
+    }
+  ]
+}
+
+
