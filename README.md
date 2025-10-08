@@ -21,6 +21,8 @@ This tool is designed to be used with LLM models to provide an interactive codin
 - **File Operations**: Support for reading, writing, and editing files
 - **Shell Execution**: Can execute shell commands within the project workspace
 - **MCP Integration**: Supports Model Context Protocol, can connect to various MCP servers to extend functionality
+- **Context Compression**: Intelligent automatic and manual context compression to handle long conversation token limits
+- **Real-time Status Bar**: Display MCP connection status and context usage at a glance
 - **Security Restrictions**: Prevents path traversal and dangerous command execution
 - **Real-time Feedback**: Provides visual feedback during execution
 - **Modular Architecture**: Well-organized codebase for easy maintenance and extension
@@ -119,6 +121,45 @@ After starting the program, you can interact with the code assistant in the term
 
 Type `exit` or `quit` to exit the program.
 
+### Available Commands
+
+- `/help` - Show help message
+- `/clear` - Clear screen
+- `/history` - Show conversation history
+- `/reset` - Reset conversation history
+- `/compact` - Manually compress conversation history to a summary
+- `/stats` - Show context usage statistics
+- `exit/quit` - Exit the program
+
+### Context Compression
+
+Mini Claude Code supports intelligent context compression to handle long conversation token limits:
+
+- **Automatic Compression**: Automatically triggers when token usage reaches 92%, transparently compressing conversation history into a summary
+- **Manual Compression**: Use `/compact` command to manually compress conversation history
+- **Statistics View**: Use `/stats` command to view current token usage
+
+For detailed information, please refer to [Context Compression Documentation](docs/CONTEXT_COMPRESSION.md) ([中文](docs/CONTEXT_COMPRESSION_zh.md)).
+
+### Real-time Status Bar
+
+Displays real-time status information after each command:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🔌 MCP: 2 │ 🟢 Context: 45% │ 💬 Messages: 67                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **MCP Status**: Shows number of connected MCP servers
+- **Context Usage**: Displays context usage percentage with color coding
+  - 🟢 Green (0-74%): Normal
+  - 🟡 Yellow (75-91%): Warning
+  - 🔴 Red (92-100%): Critical (auto-compress soon)
+- **Message Count**: Total number of messages in current conversation
+
+For detailed information, please refer to [Status Bar Documentation](docs/STATUS_BAR.md) ([中文](docs/STATUS_BAR_zh.md)).
+
 ## MCP Integration
 
 Mini Claude Code supports Model Context Protocol (MCP), which allows you to connect to various MCP servers to extend functionality.
@@ -157,8 +198,8 @@ Three transport types are supported:
 ```
 
 For detailed MCP configuration and usage instructions, please refer to:
-- [MCP Integration Guide](docs/MCP_GUIDE.md)
-- [MCP Transport Guide](docs/MCP_TRANSPORT.md)
+- [MCP Integration Guide](docs/MCP_GUIDE.md) ([中文](docs/MCP_GUIDE_zh.md))
+- [MCP Transport Guide](docs/MCP_TRANSPORT.md) ([中文](docs/MCP_TRANSPORT_zh.md))
 
 ### Interaction Example
 
@@ -189,32 +230,44 @@ The assistant includes several security measures:
 
 ```
 src/
-├── config/              # Configuration and environment variables
-│   ├── environment.ts    # Environment configuration
-│   └── mcp-config.ts     # MCP server configuration
-├── core/                # Core assistant logic
-│   ├── agent.ts          # Main assistant logic
-│   ├── mcp-client.ts     # MCP client manager
-│   └── spinner.ts        # CLI spinner for visual feedback
-├── tools/               # Tool implementations
-│   ├── bash.ts           # Shell command execution
-│   ├── dispatcher.ts     # Tool dispatcher
-│   ├── editText.ts       # Text editing operations
-│   ├── readFile.ts       # File reading operations
-│   ├── tools.ts          # Tool definitions
-│   └── writeFile.ts      # File writing operations
-├── types/               # TypeScript type definitions
-│   └── index.ts          # Shared TypeScript interfaces
-├── utils/               # Utility functions
-│   ├── file-helpers.ts   # File utilities
-│   ├── logger.ts         # Logging utilities
-│   └── text-helpers.ts   # Text processing utilities
-└── index.ts             # Main program entry
+├── config/                    # Configuration and environment variables
+│   ├── environment.ts          # Environment configuration
+│   └── mcp-config.ts           # MCP server configuration
+├── core/                      # Core assistant logic
+│   ├── agent.ts                # Main assistant logic (with auto-compression)
+│   ├── mcp-client.ts           # MCP client manager
+│   └── spinner.ts              # CLI spinner for visual feedback
+├── tools/                     # Tool implementations
+│   ├── bash.ts                 # Shell command execution
+│   ├── dispatcher.ts           # Tool dispatcher
+│   ├── editText.ts             # Text editing operations
+│   ├── readFile.ts             # File reading operations
+│   ├── tools.ts                # Tool definitions
+│   └── writeFile.ts            # File writing operations
+├── types/                     # TypeScript type definitions
+│   └── index.ts                # Shared TypeScript interfaces
+├── utils/                     # Utility functions
+│   ├── context-compression.ts  # Context compression core logic
+│   ├── tokens.ts               # Token counting utilities
+│   ├── file-helpers.ts         # File utilities
+│   ├── logger.ts               # Logging utilities
+│   ├── ui.ts                   # UI utilities (including status bar)
+│   └── text-helpers.ts         # Text processing utilities
+└── index.ts                   # Main program entry
 
-dist/                     # Compiled JavaScript files
-package.json              # Project configuration and dependencies
-package-lock.json         # Dependency lock file
-tsconfig.json             # TypeScript configuration
+docs/                          # Documentation
+├── CONTEXT_COMPRESSION.md      # Context compression guide
+├── STATUS_BAR.md               # Status bar feature guide
+├── MCP_GUIDE.md                # MCP integration guide
+└── MCP_TRANSPORT.md            # MCP transport guide
+
+examples/                      # Example files
+└── context-compression-demo.md # Context compression examples
+
+dist/                          # Compiled JavaScript files
+package.json                   # Project configuration and dependencies
+package-lock.json              # Dependency lock file
+tsconfig.json                  # TypeScript configuration
 ```
 
 ## Development

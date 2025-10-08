@@ -5,6 +5,7 @@ import { getTools } from '../tools/tools';
 import { dispatchTool } from '../tools/dispatcher';
 import { logErrorDebug } from '../utils/logger';
 import { ui } from '../utils/ui';
+import { shouldAutoCompact, executeAutoCompact } from '../utils/context-compression';
 
 // ---------- SDK client ----------
 const apiKey = ANTHROPIC_API_KEY;
@@ -34,6 +35,12 @@ const SYSTEM = (
 // ---------- Core loop ----------
 export async function query(messages: any[], opts: any = {}): Promise<any[]> {
     let spinner: Ora | null = null;
+
+    // ============ Auto-compression checkpoint ============
+    // Check if context compression is needed before each query
+    if (shouldAutoCompact(messages)) {
+        messages = await executeAutoCompact(messages);
+    }
 
     while (true) {
         spinner = ora({

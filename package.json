@@ -1,6 +1,6 @@
 {
   "name": "@scipen/mini-claude-code",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A lightweight minimal implementation of Claude Code CLI tool",
   "keywords": [
     "claude",

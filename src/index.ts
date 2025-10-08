@@ -6,6 +6,7 @@ import { WORKDIR } from './config/environment';
 import { mcpClientManager } from './core/mcp-client';
 import { loadMCPConfig } from './config/mcp-config';
 import { ui } from './utils/ui';
+import { executeManualCompact, getContextStats } from './utils/context-compression';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -32,6 +33,10 @@ async function main() {
     ui.printTips();
 
     const history: any[] = [];
+    
+    // Get MCP server count
+    const mcpConfig = await loadMCPConfig().catch(() => []);
+    const mcpServerCount = mcpConfig.length || 0;
 
     // Handle Ctrl+C gracefully
     let isExiting = false;
@@ -57,6 +62,15 @@ async function main() {
         isExiting = false;
     });
 
+    // Helper function to show status bar
+    const showStatusBar = () => {
+        const stats = getContextStats(history);
+        ui.printStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount);
+    };
+
+    // Show initial status bar
+    showStatusBar();
+
     while (true) {
         try {
             const line = await input({
@@ -73,23 +87,58 @@ async function main() {
             // Handle special commands
             if (trimmed === '/help') {
                 ui.printHelp();
+                showStatusBar();
                 continue;
             }
 
             if (trimmed === '/clear') {
                 ui.clearScreen();
                 ui.printBanner(version, WORKDIR, mcpStatus);
+                showStatusBar();
                 continue;
             }
 
             if (trimmed === '/history') {
                 ui.printHistory(history);
+                showStatusBar();
                 continue;
             }
 
             if (trimmed === '/reset') {
                 history.length = 0;
                 ui.printSuccess('Conversation history has been reset');
+                showStatusBar();
+                continue;
+            }
+
+            if (trimmed === '/compact') {
+                if (history.length === 0) {
+                    ui.printWarning('No conversation history to compress');
+                } else {
+                    try {
+                        const compactedHistory = await executeManualCompact(history);
+                        // Replace history with compacted version
+                        history.length = 0;
+                        history.push(...compactedHistory);
+                    } catch (error) {
+                        ui.printError('Failed to compress conversation', error);
+                    }
+                }
+                showStatusBar();
+                continue;
+            }
+
+            if (trimmed === '/stats') {
+                const stats = getContextStats(history);
+                ui.printInfo(
+                    `📊 Context Statistics:\n` +
+                    `   Messages: ${stats.messageCount}\n` +
+                    `   Tokens: ~${stats.tokenCount} / ${stats.contextLimit}\n` +
+                    `   Usage: ${stats.percentUsed}%\n` +
+                    `   Remaining: ~${stats.tokensRemaining} tokens until auto-compact\n` +
+                    `   Status: ${stats.isAboveAutoCompactThreshold ? '⚠️  Near limit' : '✅ OK'}`
+                );
+                showStatusBar();
                 continue;
             }
 
@@ -105,6 +154,10 @@ async function main() {
             // Add to history and query
             history.push({ role: "user", content: [{ type: "text", "text": trimmed }] });
             await query(history);
+            
+            // Update status bar after query
+            console.log(); // Add spacing
+            showStatusBar();
 
         } catch (e: any) {
             if (e.name === 'ExitPromptError') {

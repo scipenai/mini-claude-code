@@ -21,6 +21,8 @@ Mini Claude Code Agent 是 Claude Code 的简化版本，它允许 AI 模型通�
 - **文件操作**：支持读取、写入和编辑文件
 - **Shell 执行**：可以在项目工作区中执行 shell 命令
 - **MCP 集成**：支持 Model Context Protocol，可连接多种 MCP 服务器扩展功能
+- **上下文压缩**：智能的自动和手动上下文压缩，处理长对话的 token 限制
+- **实时状态栏**：显示 MCP 连接状态和上下文使用率，一目了然
 - **安全限制**：防止路径遍历和危险命令执行
 - **实时反馈**：在执行过程中提供视觉反馈
 - **模块化架构**：组织良好的代码库，便于维护和扩展
@@ -119,6 +121,45 @@ npm start
 
 输入 `exit` 或 `quit` 退出程序。
 
+### 可用命令
+
+- `/help` - 显示帮助信息
+- `/clear` - 清屏
+- `/history` - 显示对话历史
+- `/reset` - 重置对话历史
+- `/compact` - 手动压缩对话历史为摘要
+- `/stats` - 显示上下文使用统计
+- `exit/quit` - 退出程序
+
+### 上下文压缩
+
+Mini Claude Code 支持智能的上下文压缩功能，可以处理长对话的 token 限制问题：
+
+- **自动压缩**：当 token 使用率达到 92% 时自动触发，透明地压缩对话历史为摘要
+- **手动压缩**：使用 `/compact` 命令手动压缩对话历史
+- **统计查看**：使用 `/stats` 命令查看当前的 token 使用情况
+
+详细说明请参阅 [上下文压缩文档](docs/CONTEXT_COMPRESSION_zh.md) ([English](docs/CONTEXT_COMPRESSION.md))。
+
+### 实时状态栏
+
+在每次命令后显示实时状态信息：
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🔌 MCP: 2 │ 🟢 Context: 45% │ 💬 Messages: 67                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **MCP 状态**：显示已连接的 MCP 服务器数量
+- **上下文使用率**：用颜色编码显示上下文使用百分比
+  - 🟢 绿色 (0-74%): 正常
+  - 🟡 黄色 (75-91%): 警告
+  - 🔴 红色 (92-100%): 临界（即将自动压缩）
+- **消息数量**：当前对话的消息总数
+
+详细说明请参阅 [状态栏文档](docs/STATUS_BAR_zh.md) ([English](docs/STATUS_BAR.md))。
+
 ## MCP 集成
 
 Mini Claude Code 支持 Model Context Protocol (MCP)，可以连接各种 MCP 服务器来扩展功能。
@@ -189,32 +230,44 @@ Result: wrote 26 bytes to hello.js
 
 ```
 src/
-├── config/              # 配置和环境变量
-│   ├── environment.ts    # 环境配置
-│   └── mcp-config.ts     # MCP 服务器配置
-├── core/                # 核心助手逻辑
-│   ├── agent.ts          # 主要助手逻辑
-│   ├── mcp-client.ts     # MCP 客户端管理器
-│   └── spinner.ts        # CLI 旋转器用于视觉反馈
-├── tools/               # 工具实现
-│   ├── bash.ts           # Shell 命令执行
-│   ├── dispatcher.ts     # 工具分发器
-│   ├── editText.ts       # 文本编辑操作
-│   ├── readFile.ts       # 文件读取操作
-│   ├── tools.ts          # 工具定义
-│   └── writeFile.ts      # 文件写入操作
-├── types/               # TypeScript 类型定义
-│   └── index.ts          # 共享 TypeScript 接口
-├── utils/               # 实用函数
-│   ├── file-helpers.ts   # 文件实用函数
-│   ├── logger.ts         # 日志工具
-│   └── text-helpers.ts   # 文本处理实用函数
-└── index.ts             # 主程序入口
+├── config/                    # 配置和环境变量
+│   ├── environment.ts          # 环境配置
+│   └── mcp-config.ts           # MCP 服务器配置
+├── core/                      # 核心助手逻辑
+│   ├── agent.ts                # 主要助手逻辑（含自动压缩）
+│   ├── mcp-client.ts           # MCP 客户端管理器
+│   └── spinner.ts              # CLI 旋转器用于视觉反馈
+├── tools/                     # 工具实现
+│   ├── bash.ts                 # Shell 命令执行
+│   ├── dispatcher.ts           # 工具分发器
+│   ├── editText.ts             # 文本编辑操作
+│   ├── readFile.ts             # 文件读取操作
+│   ├── tools.ts                # 工具定义
+│   └── writeFile.ts            # 文件写入操作
+├── types/                     # TypeScript 类型定义
+│   └── index.ts                # 共享 TypeScript 接口
+├── utils/                     # 实用函数
+│   ├── context-compression.ts  # 上下文压缩核心逻辑
+│   ├── tokens.ts               # Token 计数工具
+│   ├── file-helpers.ts         # 文件实用函数
+│   ├── logger.ts               # 日志工具
+│   ├── ui.ts                   # UI 工具（含状态栏）
+│   └── text-helpers.ts         # 文本处理实用函数
+└── index.ts                   # 主程序入口
 
-dist/                     # 编译后的 JavaScript 文件
-package.json              # 项目配置和依赖
-package-lock.json         # 依赖锁定文件
-tsconfig.json             # TypeScript 配置
+docs/                          # 文档
+├── CONTEXT_COMPRESSION.md      # 上下文压缩指南
+├── STATUS_BAR.md               # 状态栏功能指南
+├── MCP_GUIDE_zh.md             # MCP 集成指南
+└── MCP_TRANSPORT_zh.md         # MCP 传输方式详解
+
+examples/                      # 示例文件
+└── context-compression-demo.md # 上下文压缩示例
+
+dist/                          # 编译后的 JavaScript 文件
+package.json                   # 项目配置和依赖
+package-lock.json              # 依赖锁定文件
+tsconfig.json                  # TypeScript 配置
 ```
 
 ## 开发
