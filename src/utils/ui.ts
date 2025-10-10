@@ -50,8 +50,10 @@ export const ui = {
         console.log(chalk.cyan('  /reset   ') + chalk.dim('- Reset conversation history'));
         console.log(chalk.cyan('  /compact ') + chalk.dim('- Compress conversation to a summary (manual)'));
         console.log(chalk.cyan('  /stats   ') + chalk.dim('- Show context usage statistics'));
+        console.log(chalk.cyan('  /todos   ') + chalk.dim('- Show current task list'));
         console.log(chalk.cyan('  exit/quit') + chalk.dim('- Exit the program'));
-        console.log(chalk.dim('\n💡 Tip: Context will auto-compress at 92% capacity\n'));
+        console.log(chalk.dim('\n💡 Tip: Context will auto-compress at 92% capacity'));
+        console.log(chalk.dim('💡 Tip: Use TodoWrite tool for complex multi-step tasks\n'));
     },
 
     printTips() {
@@ -64,7 +66,11 @@ export const ui = {
 
     printAssistantText(text: string) {
         if (text.trim()) {
-            console.log(chalk.green(`\n${this.icons.assistant} AI: `) + text);
+            const formatted = this.formatLongOutput(text, 50); // Max 50 lines
+            console.log(chalk.green(`\n${this.icons.assistant} AI: `) + formatted.content);
+            if (formatted.truncated) {
+                console.log(chalk.dim(`   ... (${formatted.hiddenLines} more lines hidden)`));
+            }
         }
     },
 
@@ -74,7 +80,11 @@ export const ui = {
         // Format tool input nicely
         const formattedInput = this.formatToolInput(toolInput);
         if (formattedInput) {
-            console.log(chalk.gray('   Input: ') + chalk.dim(formattedInput));
+            const formatted = this.formatLongOutput(formattedInput, 10); // Max 10 lines for tool input
+            console.log(chalk.gray('   Input: ') + chalk.dim(formatted.content));
+            if (formatted.truncated) {
+                console.log(chalk.dim(`   ... (input truncated)`));
+            }
         }
     },
 
@@ -82,13 +92,23 @@ export const ui = {
         const icon = success ? this.icons.success : this.icons.error;
         const color = success ? chalk.green : chalk.red;
         const durationText = duration ? chalk.dim(` (${duration}ms)`) : '';
-        console.log(color(`   ${icon} `) + message + durationText);
+        
+        // Format long output for tool results
+        const formatted = this.formatLongOutput(message, 30); // Max 30 lines for tool output
+        console.log(color(`   ${icon} `) + formatted.content + durationText);
+        if (formatted.truncated) {
+            console.log(chalk.dim(`   ... (${formatted.hiddenLines} more lines hidden)`));
+        }
     },
 
     printError(message: string, error?: any) {
         console.log(chalk.red.bold(`\n${this.icons.error} Error: `) + message);
         if (error && error.message) {
-            console.log(chalk.red(error.message));
+            const formatted = this.formatLongOutput(error.message, 20); // Max 20 lines for errors
+            console.log(chalk.red(formatted.content));
+            if (formatted.truncated) {
+                console.log(chalk.dim(`   ... (${formatted.hiddenLines} more lines hidden)`));
+            }
         }
     },
 
@@ -127,22 +147,37 @@ export const ui = {
         if (!input) return '';
         
         try {
-            // For common tools, show key parameters only
-            if (input.path) {
-                let result = `path: "${input.path}"`;
+            // For common tools, show key parameters
+            if (input.path || input.file_path || input.target_file) {
+                let result = '';
+                const pathKey = input.path || input.file_path || input.target_file;
+                result += `path: "${pathKey}"`;
+                
                 if (input.content) {
-                    const preview = this.truncate(input.content, 50);
-                    result += `, content: "${preview}"`;
+                    // Show content preview with line count if multi-line
+                    const lines = String(input.content).split('\n');
+                    if (lines.length > 1) {
+                        result += `\n   content: (${lines.length} lines)`;
+                        result += `\n${lines.slice(0, 5).join('\n')}`;
+                        if (lines.length > 5) {
+                            result += `\n   ...`;
+                        }
+                    } else {
+                        result += `\n   content: "${this.truncate(input.content, 200)}"`;
+                    }
                 }
                 if (input.command) {
-                    result += `, command: "${input.command}"`;
+                    result += `\n   command: "${input.command}"`;
+                }
+                if (input.old_string && input.new_string) {
+                    result += `\n   replacing ${this.truncate(input.old_string, 50)} with ${this.truncate(input.new_string, 50)}`;
                 }
                 return result;
             }
             
-            // For other tools, show compact JSON
-            const json = JSON.stringify(input, null, 0);
-            return this.truncate(json, 100);
+            // For other tools, show formatted JSON
+            const json = JSON.stringify(input, null, 2);
+            return json;
         } catch (e) {
             return String(input);
         }
@@ -171,6 +206,35 @@ export const ui = {
         return text.substring(0, maxLength - 3) + '...';
     },
 
+    /**
+     * Format long output by truncating if it exceeds maxLines
+     * @param text - The text to format
+     * @param maxLines - Maximum number of lines to display
+     * @returns Formatted output with truncation info
+     */
+    formatLongOutput(text: string, maxLines: number): { content: string, truncated: boolean, hiddenLines: number } {
+        const lines = text.split('\n');
+        
+        if (lines.length <= maxLines) {
+            return { content: text, truncated: false, hiddenLines: 0 };
+        }
+        
+        // Show first (maxLines - 5) lines and last 3 lines
+        const keepTopLines = Math.max(5, maxLines - 5);
+        const keepBottomLines = 3;
+        
+        const topLines = lines.slice(0, keepTopLines);
+        const bottomLines = lines.slice(-keepBottomLines);
+        const hiddenLines = lines.length - keepTopLines - keepBottomLines;
+        
+        let content = topLines.join('\n');
+        if (bottomLines.length > 0 && hiddenLines > 0) {
+            content += '\n' + chalk.dim(`   ... (${hiddenLines} lines omitted) ...`) + '\n' + bottomLines.join('\n');
+        }
+        
+        return { content, truncated: true, hiddenLines: lines.length - maxLines };
+    },
+
     clearScreen() {
         console.clear();
     },
@@ -185,7 +249,7 @@ export const ui = {
      * @param contextPercent - Context usage percentage (0-100)
      * @param messageCount - Number of messages in history
      */
-    printStatusBar(mcpServerCount: number, contextPercent: number, messageCount: number) {
+    printStatusBar(mcpServerCount: number, contextPercent: number, messageCount: number, todoStats?: { total: number, completed: number, in_progress: number }) {
         const terminalWidth = process.stdout.columns || 80;
         
         // MCP status
@@ -211,9 +275,21 @@ export const ui = {
         // Messages count
         const msgText = chalk.cyan(`💬 Messages: ${messageCount}`);
         
+        // Todo stats (if available)
+        let todoText = '';
+        if (todoStats && todoStats.total > 0) {
+            const todoIcon = '📝';
+            const completedRatio = `${todoStats.completed}/${todoStats.total}`;
+            const inProgressText = todoStats.in_progress > 0 ? ` (${todoStats.in_progress} in progress)` : '';
+            todoText = chalk.magenta(`${todoIcon} Todo: ${completedRatio}${inProgressText}`);
+        }
+        
         // Build status bar
         const separator = chalk.dim(' │ ');
-        const statusContent = `${mcpText}${separator}${contextText}${separator}${msgText}`;
+        let statusContent = `${mcpText}${separator}${contextText}${separator}${msgText}`;
+        if (todoText) {
+            statusContent += `${separator}${todoText}`;
+        }
         
         // Remove ANSI codes to calculate actual length
         const plainText = statusContent.replace(/\u001b\[[0-9;]*m/g, '');
@@ -234,14 +310,26 @@ export const ui = {
      * @param mcpServerCount - Number of connected MCP servers
      * @param contextPercent - Context usage percentage (0-100)
      * @param messageCount - Number of messages in history
+     * @param todoStats - Optional todo statistics
      */
-    updateStatusBar(mcpServerCount: number, contextPercent: number, messageCount: number) {
+    updateStatusBar(mcpServerCount: number, contextPercent: number, messageCount: number, todoStats?: { total: number, completed: number, in_progress: number }) {
         // Move cursor up 3 lines to overwrite previous status bar
         process.stdout.write('\x1b[3A');
         // Clear those lines
         process.stdout.write('\x1b[0J');
         // Print new status bar
-        this.printStatusBar(mcpServerCount, contextPercent, messageCount);
+        this.printStatusBar(mcpServerCount, contextPercent, messageCount, todoStats);
+    },
+
+    /**
+     * Print todo list with formatted display
+     * @param todoBoard - Todo board instance
+     */
+    printTodoBoard(todoBoard: any) {
+        const rendered = todoBoard.render();
+        if (rendered) {
+            console.log('\n' + rendered + '\n');
+        }
     },
 };
 
