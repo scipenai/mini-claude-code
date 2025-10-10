@@ -6,6 +6,12 @@ import { dispatchTool } from '../tools/dispatcher';
 import { logErrorDebug } from '../utils/logger';
 import { ui } from '../utils/ui';
 import { shouldAutoCompact, executeAutoCompact } from '../utils/context-compression';
+import { 
+    incrementRound, 
+    checkAndRemind, 
+    consumePendingContextBlocks,
+    initializeReminder
+} from './todo-reminder';
 
 // ---------- SDK client ----------
 const apiKey = ANTHROPIC_API_KEY;
@@ -29,17 +35,88 @@ const SYSTEM = (
     "- Never invent file paths. Ask via reads or list directories first if unsure.\n" +
     "- For edits, apply the smallest change that satisfies the request.\n" +
     "- For bash, avoid destructive or privileged commands; stay inside the workspace.\n" +
-    "- After finishing, summarize what changed and how to run or test."
+    "- Use the TodoWrite tool to maintain multi-step plans when needed.\n" +
+    "- After finishing, summarize what changed and how to run or test.\n" 
 );
+
+// Initialize reminder system
+let reminderInitialized = false;
+
+// ---------- Rate limit retry helper ----------
+async function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function callAnthropicWithRetry(
+    params: any,
+    maxRetries: number = 5,
+    baseDelay: number = 1000
+): Promise<Anthropic.Message> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await anthropic.messages.create(params);
+        } catch (error: any) {
+            // Check if it's a 429 rate limit error
+            const is429 = error?.status === 429 || 
+                          error?.message?.includes('429') ||
+                          error?.message?.includes('Request limit exceeded');
+            
+            if (is429 && attempt < maxRetries) {
+                // Calculate exponential backoff delay
+                const delay = baseDelay * Math.pow(2, attempt);
+                const jitter = Math.random() * 1000; // Add jitter to avoid thundering herd
+                const totalDelay = delay + jitter;
+                
+                console.log(`\n⚠️  Rate limit exceeded (429). Retrying in ${(totalDelay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})...`);
+                await sleep(totalDelay);
+                continue;
+            }
+            
+            // If not a 429 error or exceeded max retries, throw the error
+            throw error;
+        }
+    }
+    throw new Error('Max retries exceeded for API call');
+}
 
 // ---------- Core loop ----------
 export async function query(messages: any[], opts: any = {}): Promise<any[]> {
     let spinner: Ora | null = null;
+    const onStatusUpdate = opts.onStatusUpdate;
+
+    // Initialize reminder system (first time only)
+    if (!reminderInitialized) {
+        initializeReminder();
+        reminderInitialized = true;
+    }
+
+    // Increment conversation round
+    incrementRound();
+    
+    // Check if reminder is needed
+    checkAndRemind();
 
     // ============ Auto-compression checkpoint ============
     // Check if context compression is needed before each query
     if (shouldAutoCompact(messages)) {
         messages = await executeAutoCompact(messages);
+        // Update status bar after compression
+        if (onStatusUpdate) {
+            onStatusUpdate();
+        }
+    }
+
+    // Add pending context blocks (reminder messages)
+    const pendingBlocks = consumePendingContextBlocks();
+    if (pendingBlocks.length > 0) {
+        // Add reminder messages as system context
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.role === 'user' && Array.isArray(lastMessage.content)) {
+            // Add reminders to user message content
+            for (const block of pendingBlocks) {
+                lastMessage.content.push(block);
+            }
+        }
     }
 
     while (true) {
@@ -49,7 +126,7 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
         }).start();
 
         try {
-            const res: Anthropic.Message = await anthropic.messages.create({
+            const res: Anthropic.Message = await callAnthropicWithRetry({
                 model: ANTHROPIC_MODEL,
                 system: SYSTEM,
                 messages: messages,
@@ -122,6 +199,14 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
                 
                 messages.push({ role: "assistant", content: res.content });
                 messages.push({ role: "user", content: results });
+                
+                // Update status bar after tools execution
+                if (onStatusUpdate) {
+                    console.log(); // Add spacing before status bar update
+                    onStatusUpdate();
+                    console.log(); // Add spacing after status bar update
+                }
+                
                 continue;
             }
 

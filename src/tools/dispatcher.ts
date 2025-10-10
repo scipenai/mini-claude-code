@@ -4,6 +4,7 @@ import { runBash } from './bash';
 import { runRead } from './readFile';
 import { runWrite } from './writeFile';
 import { runEdit } from './editText';
+import { runTodoWrite } from './todoWrite';
 import { mcpClientManager } from '../core/mcp-client';
 
 // ---------- Tool Dispatcher ----------
@@ -13,6 +14,12 @@ export async function dispatchTool(toolUse: any): Promise<any> {
         const inputObj = toolUse.input || {};
         const toolUseId = toolUse.id;
 
+        if (name === "TodoWrite") {
+            prettyToolLine("Todo", `Update task list (${inputObj.items?.length || 0} items)`);
+            const out = runTodoWrite(inputObj);
+            prettySubLine(out);
+            return { type: "tool_result", tool_use_id: toolUseId, content: out };
+        }
         if (name === "bash") {
             prettyToolLine("Bash", inputObj.command);
             const out = runBash(inputObj);

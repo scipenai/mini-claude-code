@@ -7,6 +7,7 @@ import { mcpClientManager } from './core/mcp-client';
 import { loadMCPConfig } from './config/mcp-config';
 import { ui } from './utils/ui';
 import { executeManualCompact, getContextStats } from './utils/context-compression';
+import { TODO_BOARD } from './core/todo-manager';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -65,7 +66,13 @@ async function main() {
     // Helper function to show status bar
     const showStatusBar = () => {
         const stats = getContextStats(history);
-        ui.printStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount);
+        const todoStats = TODO_BOARD.stats();
+        const todoInfo = todoStats.total > 0 ? {
+            total: todoStats.total,
+            completed: todoStats.completed,
+            in_progress: todoStats.in_progress
+        } : undefined;
+        ui.printStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount, todoInfo);
     };
 
     // Show initial status bar
@@ -142,6 +149,17 @@ async function main() {
                 continue;
             }
 
+            if (trimmed === '/todos') {
+                const todoStats = TODO_BOARD.stats();
+                if (todoStats.total === 0) {
+                    ui.printInfo('📝 No current tasks');
+                } else {
+                    ui.printTodoBoard(TODO_BOARD);
+                }
+                showStatusBar();
+                continue;
+            }
+
             // Handle exit commands
             if (["q", "quit", "exit"].includes(trimmed.toLowerCase())) {
                 console.log('\n👋 Goodbye!\n');
@@ -153,7 +171,25 @@ async function main() {
 
             // Add to history and query
             history.push({ role: "user", content: [{ type: "text", "text": trimmed }] });
-            await query(history);
+            
+            // Show status bar before query starts
+            console.log(); // Add spacing
+            showStatusBar();
+            console.log(); // Add spacing before execution
+            
+            // Pass status bar updater to query
+            await query(history, {
+                onStatusUpdate: () => {
+                    const stats = getContextStats(history);
+                    const todoStats = TODO_BOARD.stats();
+                    const todoInfo = todoStats.total > 0 ? {
+                        total: todoStats.total,
+                        completed: todoStats.completed,
+                        in_progress: todoStats.in_progress
+                    } : undefined;
+                    ui.updateStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount, todoInfo);
+                }
+            });
             
             // Update status bar after query
             console.log(); // Add spacing

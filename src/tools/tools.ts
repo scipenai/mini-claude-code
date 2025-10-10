@@ -1,8 +1,56 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { mcpClientManager } from '../core/mcp-client';
+import { TODO_STATUSES } from '../core/todo-manager';
 
 // ---------- Base Tool Definitions ----------
 export const baseTools: Anthropic.Tool[] = [
+    {
+        name: "TodoWrite",
+        description: (
+            "Update the shared todo list. Used for task planning, progress tracking, and multi-step task management.\n" +
+            "Status descriptions:\n" +
+            "- pending: Not started\n" +
+            "- in_progress: Currently working on (only one allowed at a time)\n" +
+            "- completed: Finished\n" +
+            "Maximum 20 tasks supported, task IDs must be unique."
+        ),
+        input_schema: {
+            type: "object",
+            properties: {
+                items: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            id: { 
+                                type: "string", 
+                                description: "Unique identifier for the task" 
+                            },
+                            content: { 
+                                type: "string", 
+                                description: "Task content description" 
+                            },
+                            activeForm: { 
+                                type: "string", 
+                                description: "Active form or context information for the task" 
+                            },
+                            status: { 
+                                type: "string", 
+                                enum: [...TODO_STATUSES],
+                                description: "Task status" 
+                            },
+                        },
+                        required: ["id", "content", "status"],
+                        additionalProperties: false,
+                    },
+                    maxItems: 20,
+                    description: "Array of task items"
+                }
+            },
+            required: ["items"],
+            additionalProperties: false,
+        },
+    },
     {
         name: "bash",
         description: (
