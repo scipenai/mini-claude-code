@@ -54,14 +54,16 @@ export const baseTools: Anthropic.Tool[] = [
     {
         name: "bash",
         description: (
-            "Execute a shell command inside the project workspace. Use for scaffolding, " +
-            "formatting, running scripts, etc."
+            "Execute a shell command inside the project workspace. " +
+            "On Windows, uses PowerShell by default. On Unix-like systems (Linux, macOS), uses bash. " +
+            "Use for scaffolding, formatting, running scripts, installing packages, etc. " +
+            "Note: Dangerous commands (like format, rm -rf /, shutdown) are blocked for safety."
         ),
         input_schema: {
             type: "object",
             properties: {
-                command: { type: "string", description: "Shell command to run" },
-                timeout_ms: { type: "integer", minimum: 1000, maximum: 120000 },
+                command: { type: "string", description: "Shell command to run (PowerShell on Windows, bash on Unix-like)" },
+                timeout_ms: { type: "integer", minimum: 1000, maximum: 120000, description: "Command timeout in milliseconds (default: 30000)" },
             },
             required: ["command"],
             additionalProperties: false,

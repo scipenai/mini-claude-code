@@ -10,6 +10,16 @@ import { executeManualCompact, getContextStats } from './utils/context-compressi
 import { TODO_BOARD } from './core/todo-manager';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
+
+// Fix Windows console encoding to support UTF-8
+if (process.platform === 'win32') {
+    try {
+        execSync('chcp 65001', { stdio: 'ignore' });
+    } catch {
+        // Ignore encoding setup errors
+    }
+}
 
 async function main() {
     // Load package version
