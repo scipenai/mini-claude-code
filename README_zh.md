@@ -236,30 +236,36 @@ src/
 ├── core/                      # 核心助手逻辑
 │   ├── agent.ts                # 主要助手逻辑（含自动压缩）
 │   ├── mcp-client.ts           # MCP 客户端管理器
-│   └── spinner.ts              # CLI 旋转器用于视觉反馈
+│   ├── todo-manager.ts         # Todo 任务管理
+│   └── todo-reminder.ts        # Todo 提醒功能
 ├── tools/                     # 工具实现
 │   ├── bash.ts                 # Shell 命令执行
 │   ├── dispatcher.ts           # 工具分发器
 │   ├── editText.ts             # 文本编辑操作
 │   ├── readFile.ts             # 文件读取操作
+│   ├── todoWrite.ts            # Todo 列表管理工具
 │   ├── tools.ts                # 工具定义
 │   └── writeFile.ts            # 文件写入操作
 ├── types/                     # TypeScript 类型定义
 │   └── index.ts                # 共享 TypeScript 接口
 ├── utils/                     # 实用函数
 │   ├── context-compression.ts  # 上下文压缩核心逻辑
-│   ├── tokens.ts               # Token 计数工具
 │   ├── file-helpers.ts         # 文件实用函数
 │   ├── logger.ts               # 日志工具
-│   ├── ui.ts                   # UI 工具（含状态栏）
-│   └── text-helpers.ts         # 文本处理实用函数
+│   ├── text-helpers.ts         # 文本处理实用函数
+│   ├── tokens.ts               # Token 计数工具
+│   └── ui.ts                   # UI 工具（含状态栏）
 └── index.ts                   # 主程序入口
 
 docs/                          # 文档
 ├── CONTEXT_COMPRESSION.md      # 上下文压缩指南
+├── CONTEXT_COMPRESSION_zh.md   # 上下文压缩指南（中文）
+├── MCP_GUIDE.md                # MCP 集成指南
+├── MCP_GUIDE_zh.md             # MCP 集成指南（中文）
+├── MCP_TRANSPORT.md            # MCP 传输方式详解
+├── MCP_TRANSPORT_zh.md         # MCP 传输方式详解（中文）
 ├── STATUS_BAR.md               # 状态栏功能指南
-├── MCP_GUIDE_zh.md             # MCP 集成指南
-└── MCP_TRANSPORT_zh.md         # MCP 传输方式详解
+└── STATUS_BAR_zh.md            # 状态栏功能指南（中文）
 
 examples/                      # 示例文件
 └── context-compression-demo.md # 上下文压缩示例
@@ -268,6 +274,7 @@ dist/                          # 编译后的 JavaScript 文件
 package.json                   # 项目配置和依赖
 package-lock.json              # 依赖锁定文件
 tsconfig.json                  # TypeScript 配置
+.mcp.example.json              # MCP 配置示例
 ```
 
 ## 开发

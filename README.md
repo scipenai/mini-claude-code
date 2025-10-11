@@ -236,30 +236,36 @@ src/
 ├── core/                      # Core assistant logic
 │   ├── agent.ts                # Main assistant logic (with auto-compression)
 │   ├── mcp-client.ts           # MCP client manager
-│   └── spinner.ts              # CLI spinner for visual feedback
+│   ├── todo-manager.ts         # Todo task management
+│   └── todo-reminder.ts        # Todo reminder functionality
 ├── tools/                     # Tool implementations
 │   ├── bash.ts                 # Shell command execution
 │   ├── dispatcher.ts           # Tool dispatcher
 │   ├── editText.ts             # Text editing operations
 │   ├── readFile.ts             # File reading operations
+│   ├── todoWrite.ts            # Todo list management tool
 │   ├── tools.ts                # Tool definitions
 │   └── writeFile.ts            # File writing operations
 ├── types/                     # TypeScript type definitions
 │   └── index.ts                # Shared TypeScript interfaces
 ├── utils/                     # Utility functions
 │   ├── context-compression.ts  # Context compression core logic
-│   ├── tokens.ts               # Token counting utilities
 │   ├── file-helpers.ts         # File utilities
 │   ├── logger.ts               # Logging utilities
-│   ├── ui.ts                   # UI utilities (including status bar)
-│   └── text-helpers.ts         # Text processing utilities
+│   ├── text-helpers.ts         # Text processing utilities
+│   ├── tokens.ts               # Token counting utilities
+│   └── ui.ts                   # UI utilities (including status bar)
 └── index.ts                   # Main program entry
 
 docs/                          # Documentation
 ├── CONTEXT_COMPRESSION.md      # Context compression guide
-├── STATUS_BAR.md               # Status bar feature guide
+├── CONTEXT_COMPRESSION_zh.md   # Context compression guide (Chinese)
 ├── MCP_GUIDE.md                # MCP integration guide
-└── MCP_TRANSPORT.md            # MCP transport guide
+├── MCP_GUIDE_zh.md             # MCP integration guide (Chinese)
+├── MCP_TRANSPORT.md            # MCP transport guide
+├── MCP_TRANSPORT_zh.md         # MCP transport guide (Chinese)
+├── STATUS_BAR.md               # Status bar feature guide
+└── STATUS_BAR_zh.md            # Status bar feature guide (Chinese)
 
 examples/                      # Example files
 └── context-compression-demo.md # Context compression examples
@@ -268,6 +274,7 @@ dist/                          # Compiled JavaScript files
 package.json                   # Project configuration and dependencies
 package-lock.json              # Dependency lock file
 tsconfig.json                  # TypeScript configuration
+.mcp.example.json              # MCP configuration example
 ```
 
 ## Development
