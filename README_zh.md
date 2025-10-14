@@ -129,6 +129,9 @@ npm start
 - `/reset` - 重置对话历史
 - `/compact` - 手动压缩对话历史为摘要
 - `/stats` - 显示上下文使用统计
+- `/save` - 保存当前对话到文件
+- `/load` - 从文件加载对话历史
+- `/todo` - 显示待办事项状态
 - `exit/quit` - 退出程序
 
 ### 上下文压缩
@@ -247,37 +250,38 @@ src/
 │   ├── tools.ts                # 工具定义
 │   └── writeFile.ts            # 文件写入操作
 ├── types/                     # TypeScript 类型定义
-│   └── index.ts                # 共享 TypeScript 接口
+│   ├── index.ts                # 共享 TypeScript 接口
+│   └── storage.ts              # 存储相关类型定义
 ├── utils/                     # 实用函数
 │   ├── context-compression.ts  # 上下文压缩核心逻辑
 │   ├── file-helpers.ts         # 文件实用函数
 │   ├── logger.ts               # 日志工具
+│   ├── storage/                # 存储管理
+│   │   ├── history.ts          # 对话历史存储
+│   │   ├── index.ts            # 存储管理入口
+│   │   └── log.ts              # 日志存储
 │   ├── text-helpers.ts         # 文本处理实用函数
 │   ├── tokens.ts               # Token 计数工具
 │   └── ui.ts                   # UI 工具（含状态栏）
 └── index.ts                   # 主程序入口
-
-docs/                          # 文档
-├── CONTEXT_COMPRESSION.md      # 上下文压缩指南
-├── CONTEXT_COMPRESSION_zh.md   # 上下文压缩指南（中文）
-├── MCP_GUIDE.md                # MCP 集成指南
-├── MCP_GUIDE_zh.md             # MCP 集成指南（中文）
-├── MCP_TRANSPORT.md            # MCP 传输方式详解
-├── MCP_TRANSPORT_zh.md         # MCP 传输方式详解（中文）
-├── STATUS_BAR.md               # 状态栏功能指南
-└── STATUS_BAR_zh.md            # 状态栏功能指南（中文）
-
-examples/                      # 示例文件
-└── context-compression-demo.md # 上下文压缩示例
-
-dist/                          # 编译后的 JavaScript 文件
-package.json                   # 项目配置和依赖
-package-lock.json              # 依赖锁定文件
-tsconfig.json                  # TypeScript 配置
-.mcp.example.json              # MCP 配置示例
 ```
 
 ## 开发
+
+### 版本管理
+
+本项目使用自动化脚本进行版本管理。
+
+快速参考：
+
+```bash
+# 仅更新版本号
+npm run version:patch  # 0.5.0 -> 0.5.1
+npm run version:minor  # 0.5.1 -> 0.6.0
+npm run version:major  # 0.5.1 -> 1.0.0
+```
+
+所有版本号会自动从 `package.json` 同步。
 
 ### 添加新工具
 
@@ -297,6 +301,7 @@ tsconfig.json                  # TypeScript 配置
 - **tools**：单个工具实现和工具管理
 - **types**：TypeScript 类型定义
 - **utils**：常见操作的实用函数
+- **scripts**：构建和发布自动化脚本
 
 ## 贡献
 

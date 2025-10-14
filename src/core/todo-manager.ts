@@ -1,4 +1,14 @@
 import chalk from 'chalk';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { STORAGE_DIR, TODOS_FILE } from '../config/environment';
+import { ensureDir } from '../utils/file-helpers';
+
+/**
+ * Todo Type Definitions
+ * 
+ * This is the single source of truth for Todo-related types.
+ * All other modules should import these types from here.
+ */
 
 /**
  * Todo status types
@@ -31,6 +41,53 @@ export interface TodoStats {
  */
 export class TodoManager {
     private items: TodoItem[] = [];
+    private persistEnabled: boolean = true;
+
+    /**
+     * Constructor
+     */
+    constructor(persistEnabled: boolean = true) {
+        this.persistEnabled = persistEnabled;
+        
+        // Load from persistent storage
+        if (this.persistEnabled) {
+            this.loadFromStorage();
+        }
+    }
+
+
+    /**
+     * Load tasks from persistent storage
+     */
+    private loadFromStorage(): void {
+        try {
+            if (!existsSync(TODOS_FILE)) {
+                return;
+            }
+
+            const content = readFileSync(TODOS_FILE, 'utf-8');
+            const data = JSON.parse(content);
+            if (data && Array.isArray(data)) {
+                this.items = data;
+            }
+        } catch (error) {
+            console.error('[TodoManager] Failed to load from storage:', error);
+        }
+    }
+
+    /**
+     * Save to persistent storage
+     */
+    private saveToStorage(): void {
+        if (!this.persistEnabled) return;
+
+        try {
+            ensureDir(STORAGE_DIR);
+            writeFileSync(TODOS_FILE, JSON.stringify(this.items, null, 2), 'utf-8');
+        } catch (error) {
+            console.error('[TodoManager] Failed to save to storage:', error);
+        }
+    }
 
     /**
      * Update task list
@@ -85,6 +142,9 @@ export class TodoManager {
             status: item.status,
             activeForm: item.activeForm,
         }));
+
+        // Save to persistent storage
+        this.saveToStorage();
 
         return this.render();
     }
@@ -171,6 +231,31 @@ export class TodoManager {
      */
     clear(): void {
         this.items = [];
+        this.saveToStorage();
+    }
+
+    /**
+     * Set persistence toggle
+     */
+    setPersistEnabled(enabled: boolean): void {
+        this.persistEnabled = enabled;
+        if (enabled) {
+            this.loadFromStorage();
+        }
+    }
+
+    /**
+     * Manually trigger save
+     */
+    save(): void {
+        this.saveToStorage();
+    }
+
+    /**
+     * Manually trigger load
+     */
+    load(): void {
+        this.loadFromStorage();
     }
 }
 

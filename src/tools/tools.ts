@@ -125,6 +125,9 @@ export const baseTools: Anthropic.Tool[] = [
 
 /**
  * Get all available tools (including base tools and MCP tools)
+ * 
+ * This function dynamically combines base tools with MCP tools from connected servers.
+ * It should be called each time tools are needed to ensure MCP tools are up-to-date.
  */
 export function getTools(): Anthropic.Tool[] {
     const tools: Anthropic.Tool[] = [...baseTools];
@@ -141,6 +144,3 @@ export function getTools(): Anthropic.Tool[] {
     
     return tools;
 }
-
-// For compatibility, export tools function
-export const tools = getTools();

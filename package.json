@@ -1,6 +1,6 @@
 {
   "name": "@scipen/mini-claude-code",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A lightweight minimal implementation of Claude Code CLI tool",
   "keywords": [
     "claude",
@@ -34,7 +34,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "prepublishOnly": "npm run build"
+    "version:patch": "node scripts/bump-version.js patch",
+    "version:minor": "node scripts/bump-version.js minor",
+    "version:major": "node scripts/bump-version.js major"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.64.0",

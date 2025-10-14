@@ -3,6 +3,8 @@
  * Used to estimate token usage in conversation messages
  */
 
+import { DEFAULT_CONTEXT_LIMIT, AUTO_COMPACT_THRESHOLD_RATIO } from '../config/environment';
+
 /**
  * Estimate the number of tokens in text
  * Uses a simple heuristic: approximately 0.25 tokens per character
@@ -72,13 +74,13 @@ export function countTotalTokens(messages: any[]): number {
  * 
  * @param tokenCount - Current token count
  * @param contextLimit - Context limit
- * @param thresholdRatio - Threshold ratio (default 0.92)
+ * @param thresholdRatio - Threshold ratio
  * @returns Threshold information object
  */
 export function calculateThresholds(
     tokenCount: number,
-    contextLimit: number = 200_000,
-    thresholdRatio: number = 0.92
+    contextLimit: number = DEFAULT_CONTEXT_LIMIT,
+    thresholdRatio: number = AUTO_COMPACT_THRESHOLD_RATIO
 ) {
     const autoCompactThreshold = Math.floor(contextLimit * thresholdRatio);
     

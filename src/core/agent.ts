@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL, WORKDIR } from '../config/environment';
+import { ANTHROPIC_MODEL, WORKDIR } from '../config/environment';
 import ora, { Ora } from 'ora';
 import { getTools } from '../tools/tools';
 import { dispatchTool } from '../tools/dispatcher';
@@ -12,18 +12,7 @@ import {
     consumePendingContextBlocks,
     initializeReminder
 } from './todo-reminder';
-
-// ---------- SDK client ----------
-const apiKey = ANTHROPIC_API_KEY;
-if (!apiKey) {
-    console.error("❌ ANTHROPIC_API_KEY not set. Please set the ANTHROPIC_API_KEY environment variable.");
-    process.exit(1);
-}
-
-const anthropic = new Anthropic({
-    apiKey: apiKey,
-    baseURL: ANTHROPIC_BASE_URL
-});
+import { anthropic } from './anthropic-client';
 
 // ---------- System prompt ----------
 const SYSTEM = (
