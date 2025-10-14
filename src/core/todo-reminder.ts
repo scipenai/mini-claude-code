@@ -3,22 +3,7 @@
  * Tracks Todo tool usage frequency and reminds when needed
  */
 
-/**
- * Agent state interface
- */
-export interface AgentState {
-    roundsWithoutTodo: number;
-    lastTodoRound: number;
-    totalRounds: number;
-}
-
-/**
- * Pending context block interface
- */
-export interface ContextBlock {
-    type: string;
-    text: string;
-}
+import type { AgentState, ContextBlock } from '../types';
 
 // Global state
 export const AGENT_STATE: AgentState = {

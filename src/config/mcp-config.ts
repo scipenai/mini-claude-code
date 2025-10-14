@@ -5,6 +5,8 @@
  * Supports three transport types: stdio (local process), streamable_http (new standard), sse (deprecated)
  */
 
+import { WORKDIR } from './environment';
+
 export type MCPTransportType = 'stdio' | 'streamable_http' | 'sse';
 
 export interface MCPServerConfig {
@@ -29,7 +31,7 @@ export const defaultMCPServers: MCPServerConfig[] = [
     // {
     //     name: "filesystem",
     //     command: "npx",
-    //     args: ["-y", "@modelcontextprotocol/server-filesystem", process.cwd()],
+    //     args: ["-y", "@modelcontextprotocol/server-filesystem", WORKDIR],
     // },
     
     // Example: GitHub server
@@ -50,7 +52,7 @@ export async function loadMCPConfig(): Promise<MCPServerConfig[]> {
     const fs = await import('fs/promises');
     const path = await import('path');
     
-    const configPath = path.join(process.cwd(), '.mcp.json');
+    const configPath = path.join(WORKDIR, '.mcp.json');
     
     try {
         const content = await fs.readFile(configPath, 'utf-8');

@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { AUTO_COMPACT_THRESHOLD_RATIO } from '../config/environment';
 
 /**
  * UI utilities for terminal output formatting
@@ -46,13 +47,15 @@ export const ui = {
         console.log('\n' + chalk.bold('Available Commands:'));
         console.log(chalk.cyan('  /help    ') + chalk.dim('- Show this help message'));
         console.log(chalk.cyan('  /clear   ') + chalk.dim('- Clear screen'));
-        console.log(chalk.cyan('  /history ') + chalk.dim('- Show conversation history'));
-        console.log(chalk.cyan('  /reset   ') + chalk.dim('- Reset conversation history'));
+        console.log(chalk.cyan('  /history ') + chalk.dim('- Show persistent command history'));
+        console.log(chalk.cyan('  /resume  ') + chalk.dim('- Resume a previous conversation'));
+        console.log(chalk.cyan('  /reset   ') + chalk.dim('- Clear conversation context (current session)'));
         console.log(chalk.cyan('  /compact ') + chalk.dim('- Compress conversation to a summary (manual)'));
         console.log(chalk.cyan('  /stats   ') + chalk.dim('- Show context usage statistics'));
         console.log(chalk.cyan('  /todos   ') + chalk.dim('- Show current task list'));
         console.log(chalk.cyan('  exit/quit') + chalk.dim('- Exit the program'));
-        console.log(chalk.dim('\n💡 Tip: Context will auto-compress at 92% capacity'));
+        const autoCompactPercent = Math.round(AUTO_COMPACT_THRESHOLD_RATIO * 100);
+        console.log(chalk.dim(`\n💡 Tip: Context will auto-compress at ${autoCompactPercent}% capacity`));
         console.log(chalk.dim('💡 Tip: Use TodoWrite tool for complex multi-step tasks\n'));
     },
 

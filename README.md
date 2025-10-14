@@ -129,6 +129,9 @@ Type `exit` or `quit` to exit the program.
 - `/reset` - Reset conversation history
 - `/compact` - Manually compress conversation history to a summary
 - `/stats` - Show context usage statistics
+- `/save` - Save current conversation to file
+- `/load` - Load conversation history from file
+- `/todo` - Display todo items status
 - `exit/quit` - Exit the program
 
 ### Context Compression
@@ -247,37 +250,38 @@ src/
 │   ├── tools.ts                # Tool definitions
 │   └── writeFile.ts            # File writing operations
 ├── types/                     # TypeScript type definitions
-│   └── index.ts                # Shared TypeScript interfaces
+│   ├── index.ts                # Shared TypeScript interfaces
+│   └── storage.ts              # Storage related type definitions
 ├── utils/                     # Utility functions
 │   ├── context-compression.ts  # Context compression core logic
 │   ├── file-helpers.ts         # File utilities
 │   ├── logger.ts               # Logging utilities
+│   ├── storage/                # Storage management
+│   │   ├── history.ts          # Conversation history storage
+│   │   ├── index.ts            # Storage management entry
+│   │   └── log.ts              # Log storage
 │   ├── text-helpers.ts         # Text processing utilities
 │   ├── tokens.ts               # Token counting utilities
 │   └── ui.ts                   # UI utilities (including status bar)
 └── index.ts                   # Main program entry
-
-docs/                          # Documentation
-├── CONTEXT_COMPRESSION.md      # Context compression guide
-├── CONTEXT_COMPRESSION_zh.md   # Context compression guide (Chinese)
-├── MCP_GUIDE.md                # MCP integration guide
-├── MCP_GUIDE_zh.md             # MCP integration guide (Chinese)
-├── MCP_TRANSPORT.md            # MCP transport guide
-├── MCP_TRANSPORT_zh.md         # MCP transport guide (Chinese)
-├── STATUS_BAR.md               # Status bar feature guide
-└── STATUS_BAR_zh.md            # Status bar feature guide (Chinese)
-
-examples/                      # Example files
-└── context-compression-demo.md # Context compression examples
-
-dist/                          # Compiled JavaScript files
-package.json                   # Project configuration and dependencies
-package-lock.json              # Dependency lock file
-tsconfig.json                  # TypeScript configuration
-.mcp.example.json              # MCP configuration example
 ```
 
 ## Development
+
+### Version Management
+
+This project uses automated scripts for version management. 
+
+Quick reference:
+
+```bash
+# Bump version only
+npm run version:patch  # 0.5.0 -> 0.5.1
+npm run version:minor  # 0.5.1 -> 0.6.0
+npm run version:major  # 0.5.1 -> 1.0.0
+```
+
+All version numbers are automatically synchronized from `package.json`.
 
 ### Adding New Tools
 
@@ -297,6 +301,7 @@ The codebase follows a modular architecture:
 - **tools**: Individual tool implementations and tool management
 - **types**: TypeScript type definitions
 - **utils**: Utility functions for common operations
+- **scripts**: Build and release automation scripts
 
 ## Contributing
 

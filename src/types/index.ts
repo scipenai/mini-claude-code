@@ -11,23 +11,6 @@ export interface ToolResult {
     is_error?: boolean;
 }
 
-// Todo related type definitions
-export type TodoStatus = 'pending' | 'in_progress' | 'completed';
-
-export interface TodoItem {
-    id: string;
-    content: string;
-    status: TodoStatus;
-    activeForm?: string;
-}
-
-export interface TodoStats {
-    total: number;
-    completed: number;
-    in_progress: number;
-    pending: number;
-}
-
 export interface AgentState {
     roundsWithoutTodo: number;
     lastTodoRound: number;

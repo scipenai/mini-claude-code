@@ -4,6 +4,7 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { MCPServerConfig } from '../config/mcp-config';
 import { logErrorDebug } from '../utils/logger';
+import { VERSION } from '../config/environment';
 
 // Ensure Node.js types are available
 declare const console: Console;
@@ -104,7 +105,7 @@ export class MCPClientManager {
 
         const client = new Client({
             name: "mini-claude-code",
-            version: "0.1.0",
+            version: VERSION,
         }, {
             capabilities: {
                 tools: {},

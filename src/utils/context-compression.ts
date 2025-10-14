@@ -4,19 +4,10 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL, WORKDIR } from '../config/environment';
+import { ANTHROPIC_MODEL, WORKDIR, DEFAULT_CONTEXT_LIMIT, AUTO_COMPACT_THRESHOLD_RATIO } from '../config/environment';
 import { countTotalTokens, calculateThresholds } from './tokens';
 import { ui } from './ui';
-
-// Configuration constants
-const AUTO_COMPACT_THRESHOLD_RATIO = 0.92;  // Auto-trigger at 92%
-const DEFAULT_CONTEXT_LIMIT = 200_000;      // Default context limit: 200K tokens
-
-// Anthropic client
-const anthropic = new Anthropic({
-    apiKey: ANTHROPIC_API_KEY!,
-    baseURL: ANTHROPIC_BASE_URL
-});
+import { anthropic } from '../core/anthropic-client';
 
 /**
  * Compression prompt

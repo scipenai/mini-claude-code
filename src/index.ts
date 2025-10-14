@@ -1,16 +1,25 @@
 #!/usr/bin/env node
 
-import { input } from '@inquirer/prompts';
+import { input, select } from '@inquirer/prompts';
 import { query } from './core/agent';
-import { WORKDIR } from './config/environment';
+import { WORKDIR, VERSION } from './config/environment';
 import { mcpClientManager } from './core/mcp-client';
 import { loadMCPConfig } from './config/mcp-config';
 import { ui } from './utils/ui';
 import { executeManualCompact, getContextStats } from './utils/context-compression';
 import { TODO_BOARD } from './core/todo-manager';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { execSync } from 'child_process';
+import chalk from 'chalk';
+import {
+    initializeStorage,
+    addToHistory as addToHistoryStorage,
+    getHistory as getHistoryStorage,
+    appendToLog,
+    readLog,
+    loadLogList,
+    dateToFilename,
+    getMessagesPath,
+} from './utils/storage';
 
 // Fix Windows console encoding to support UTF-8
 if (process.platform === 'win32') {
@@ -22,9 +31,12 @@ if (process.platform === 'win32') {
 }
 
 async function main() {
-    // Load package version
-    const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
-    const version = packageJson.version || '0.2.0';
+    // Initialize storage system
+    try {
+        initializeStorage();
+    } catch (error: any) {
+        ui.printWarning(`Storage initialization failed: ${error.message}`);
+    }
 
     // Initialize MCP client
     let mcpStatus = '';
@@ -40,10 +52,14 @@ async function main() {
     }
 
     // Print welcome banner
-    ui.printBanner(version, WORKDIR, mcpStatus);
+    ui.printBanner(VERSION, WORKDIR, mcpStatus);
     ui.printTips();
 
     const history: any[] = [];
+    
+    // Generate log filename (can be changed when resuming a conversation)
+    const currentLogName = dateToFilename(new Date());
+    let currentLogPath = getMessagesPath(currentLogName);
     
     // Get MCP server count
     const mcpConfig = await loadMCPConfig().catch(() => []);
@@ -110,20 +126,122 @@ async function main() {
 
             if (trimmed === '/clear') {
                 ui.clearScreen();
-                ui.printBanner(version, WORKDIR, mcpStatus);
+                ui.printBanner(VERSION, WORKDIR, mcpStatus);
                 showStatusBar();
                 continue;
             }
 
             if (trimmed === '/history') {
-                ui.printHistory(history);
+                // Display persistent command history
+                try {
+                    const commandHistory = getHistoryStorage();
+                    if (commandHistory.length === 0) {
+                        ui.printInfo('📜 No command history');
+                    } else {
+                        console.log('\n📜 Command History (Latest first):');
+                        commandHistory.forEach((cmd, index) => {
+                            const number = index + 1;
+                            console.log(`  ${number}. ${cmd}`);
+                        });
+                        console.log(`\nTotal: ${commandHistory.length} commands\n`);
+                    }
+                } catch (error) {
+                    ui.printWarning('Failed to load command history');
+                }
+                showStatusBar();
+                continue;
+            }
+
+            if (trimmed === '/resume') {
+                // Resume previous conversation
+                try {
+                    const logs = await loadLogList();
+                    
+                    if (logs.length === 0) {
+                        ui.printWarning('No conversation logs found');
+                        showStatusBar();
+                        continue;
+                    }
+
+                    // Let user select conversation to resume
+                    const choices = [
+                        ...logs.map((log, index) => ({
+                            name: `${log.firstPrompt} (${log.messageCount} messages, ${new Date(log.modified).toLocaleString()})`,
+                            value: index,
+                            description: `Created: ${new Date(log.created).toLocaleString()}`
+                        })),
+                        // Add cancel option
+                        {
+                            name: chalk.dim('── Cancel ──'),
+                            value: -1,
+                            description: 'Press to cancel and return'
+                        }
+                    ];
+
+                    const selectedIndex = await select({
+                        message: 'Select a conversation to resume (or select Cancel):',
+                        choices: choices,
+                        pageSize: 10,
+                    });
+
+                    // User selected cancel
+                    if (selectedIndex === -1) {
+                        ui.printInfo('Resume cancelled');
+                        showStatusBar();
+                        continue;
+                    }
+
+                    const selectedLog = logs[selectedIndex];
+                    const messages = readLog(selectedLog.fullPath);
+
+                    if (messages.length === 0) {
+                        ui.printWarning('Selected conversation is empty');
+                        showStatusBar();
+                        continue;
+                    }
+
+                    // Clear current history and load selected conversation
+                    history.length = 0;
+                    
+                    // Convert message format
+                    messages.forEach((msg: any) => {
+                        if (msg.message) {
+                            history.push({
+                                role: msg.type as 'user' | 'assistant',
+                                content: msg.message.content
+                            });
+                        }
+                    });
+
+                    // Update current log path to continue appending to the resumed conversation
+                    currentLogPath = selectedLog.fullPath;
+
+                    ui.printSuccess(`Loaded ${history.length} messages from conversation`);
+                    console.log(chalk.dim(`First prompt: ${selectedLog.firstPrompt}`));
+                    console.log(chalk.dim(`Last modified: ${new Date(selectedLog.modified).toLocaleString()}`));
+                    console.log(chalk.green(`✓ New messages will be appended to this conversation\n`));
+                    
+                } catch (error: any) {
+                    if (error.name === 'ExitPromptError') {
+                        // User pressed Ctrl+C to cancel
+                        ui.printInfo('Resume cancelled');
+                    } else {
+                        ui.printError('Failed to load conversation', error);
+                    }
+                }
                 showStatusBar();
                 continue;
             }
 
             if (trimmed === '/reset') {
                 history.length = 0;
-                ui.printSuccess('Conversation history has been reset');
+                // Create a new log file for the new conversation
+                const newLogName = dateToFilename(new Date());
+                currentLogPath = getMessagesPath(newLogName);
+                ui.printSuccess('Conversation context has been cleared');
+                console.log(chalk.dim('  • AI will start with a fresh context'));
+                console.log(chalk.dim('  • A new conversation log has been created'));
+                console.log(chalk.dim('  • Your command history (/history) is preserved\n'));
                 showStatusBar();
                 continue;
             }
@@ -179,8 +297,26 @@ async function main() {
             // Print user input
             ui.printUserInput(trimmed);
 
+            // Add to history storage 
+            try {
+                addToHistoryStorage(trimmed);
+            } catch (error) {
+                // Ignore storage errors
+            }
+
             // Add to history and query
-            history.push({ role: "user", content: [{ type: "text", "text": trimmed }] });
+            const userMessage = { role: "user", content: [{ type: "text", "text": trimmed }] };
+            history.push(userMessage);
+            
+            // Save user message to log
+            try {
+                appendToLog(currentLogPath, {
+                    type: 'user',
+                    message: userMessage,
+                });
+            } catch (error) {
+                // Ignore log errors
+            }
             
             // Show status bar before query starts
             console.log(); // Add spacing
@@ -200,6 +336,19 @@ async function main() {
                     ui.updateStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount, todoInfo);
                 }
             });
+            
+            // Save assistant response to log
+            try {
+                const lastMessage = history[history.length - 1];
+                if (lastMessage && lastMessage.role === 'assistant') {
+                    appendToLog(currentLogPath, {
+                        type: 'assistant',
+                        message: lastMessage,
+                    });
+                }
+            } catch (error) {
+                // Ignore log errors
+            }
             
             // Update status bar after query
             console.log(); // Add spacing
