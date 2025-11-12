@@ -20,6 +20,9 @@ import {
     dateToFilename,
     getMessagesPath,
 } from './utils/storage';
+import { processUserInput } from './commands/command-processor';
+import { shouldShowOnboarding } from './utils/project-config';
+import { getCommandNames } from './commands/commands';
 
 // Fix Windows console encoding to support UTF-8
 if (process.platform === 'win32') {
@@ -53,6 +56,14 @@ async function main() {
 
     // Print welcome banner
     ui.printBanner(VERSION, WORKDIR, mcpStatus);
+    
+    // Show onboarding tip if needed
+    if (shouldShowOnboarding()) {
+        console.log(chalk.blue('💡 Getting started:'));
+        console.log(chalk.dim('   Run /init to create an AGENTS.md file with codebase documentation'));
+        console.log(chalk.dim('   This helps the AI understand your project better\n'));
+    }
+    
     ui.printTips();
 
     const history: any[] = [];
@@ -119,7 +130,8 @@ async function main() {
 
             // Handle special commands
             if (trimmed === '/help') {
-                ui.printHelp();
+                const customCommandNames = getCommandNames();
+                ui.printHelp(customCommandNames);
                 showStatusBar();
                 continue;
             }
@@ -304,18 +316,46 @@ async function main() {
                 // Ignore storage errors
             }
 
-            // Add to history and query
-            const userMessage = { role: "user", content: [{ type: "text", "text": trimmed }] };
-            history.push(userMessage);
-            
-            // Save user message to log
+            // Process input (check if it's a command)
+            let messagesToQuery;
+            let progressMessage: string | undefined;
             try {
-                appendToLog(currentLogPath, {
-                    type: 'user',
-                    message: userMessage,
-                });
+                const processed = await processUserInput(trimmed);
+                messagesToQuery = processed.messages;
+                progressMessage = processed.progressMessage;
+            } catch (error: any) {
+                ui.printError('Command processing failed', error);
+                showStatusBar();
+                continue;
+            }
+
+            // Check if there are messages to query (local commands might return empty array)
+            if (messagesToQuery.length === 0) {
+                // Local command was executed, just show status bar
+                showStatusBar();
+                continue;
+            }
+            
+            // Add messages to history
+            for (const msg of messagesToQuery) {
+                history.push(msg);
+            }
+            
+            // Save user messages to log
+            try {
+                for (const msg of messagesToQuery) {
+                    appendToLog(currentLogPath, {
+                        type: msg.role as 'user' | 'assistant',
+                        message: msg,
+                    });
+                }
             } catch (error) {
                 // Ignore log errors
+            }
+            
+            // Show progress message if available (for commands like /init)
+            if (progressMessage) {
+                console.log(chalk.dim(`\n🔍 ${progressMessage}...\n`));
             }
             
             // Show status bar before query starts

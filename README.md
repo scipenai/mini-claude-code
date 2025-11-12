@@ -21,6 +21,7 @@ This tool is designed to be used with LLM models to provide an interactive codin
 - **File Operations**: Support for reading, writing, and editing files
 - **Shell Execution**: Can execute shell commands within the project workspace
 - **MCP Integration**: Supports Model Context Protocol, can connect to various MCP servers to extend functionality
+- **Skills System**: Support Anthropic Skills specification to install and invoke specialized skills
 - **Context Compression**: Intelligent automatic and manual context compression to handle long conversation token limits
 - **Real-time Status Bar**: Display MCP connection status and context usage at a glance
 - **Security Restrictions**: Prevents path traversal and dangerous command execution
@@ -132,6 +133,7 @@ Type `exit` or `quit` to exit the program.
 - `/save` - Save current conversation to file
 - `/load` - Load conversation history from file
 - `/todo` - Display todo items status
+- `/skills` - Manage and invoke skills (list/read)
 - `exit/quit` - Exit the program
 
 ### Context Compression
@@ -162,6 +164,51 @@ Displays real-time status information after each command:
 - **Message Count**: Total number of messages in current conversation
 
 For detailed information, please refer to [Status Bar Documentation](docs/STATUS_BAR.md) ([中文](docs/STATUS_BAR_zh.md)).
+
+## Skills System
+
+Mini Claude Code supports the Anthropic Skills specification, allowing you to install and use skills to extend AI capabilities.
+
+### What are Skills?
+
+Skills are documents containing specialized instructions and resources that help AI better complete specific tasks. For example:
+- PDF processing skills
+- Excel data analysis skills
+- Code review skills
+- Database migration skills
+
+### Quick Start
+
+1. Create a skill directory:
+```bash
+mkdir -p .mini-cc/skills/my-skill
+```
+
+2. Create a SKILL.md file:
+```bash
+cat > .mini-cc/skills/my-skill/SKILL.md << 'EOF'
+---
+name: my-skill
+description: Description of what this skill does
+---
+
+# My Skill
+
+## Instructions
+
+[Your skill instructions here...]
+EOF
+```
+
+3. Use in Mini Claude Code:
+```bash
+/skills list              # List all available skills
+/skills read my-skill     # Read skill content
+```
+
+For detailed documentation, please refer to:
+- [Skills Guide (English)](docs/SKILLS.md)
+- [Skills 使用指南 (中文)](docs/SKILLS_zh.md)
 
 ## MCP Integration
 
@@ -223,48 +270,21 @@ I have created the hello.js file with a simple program that prints "Hello, World
 
 ## Security
 
-The assistant includes several security measures:
+The assistant includes comprehensive security measures:
 
-- Blocks dangerous commands like `rm -rf /`, `shutdown`, `reboot`, and `sudo`
-- Restricts file access to the current working directory
-- Implements timeout mechanisms for command execution
+- **Enhanced Command Detection**: Uses regex-based pattern matching to block dangerous commands
+  - File system destruction (`rm -rf /`, `mkfs`, `dd`)
+  - Privilege escalation (`sudo`, `su`)
+  - System control (`shutdown`, `reboot`, `poweroff`)
+  - Remote code execution (`curl | bash`, `wget | sh`)
+  - Fork bombs and resource exhaustion
+  - And many more (50+ patterns)
+- **Path Traversal Prevention**: Restricts file access to the current working directory
+- **Timeout Protection**: Default 30-second timeout for all command executions
+- **Safe Command Whitelist**: Common development commands bypass checks for better performance
+- **Detailed Error Messages**: Clear feedback when commands are blocked
 
-## Project Structure
-
-```
-src/
-├── config/                    # Configuration and environment variables
-│   ├── environment.ts          # Environment configuration
-│   └── mcp-config.ts           # MCP server configuration
-├── core/                      # Core assistant logic
-│   ├── agent.ts                # Main assistant logic (with auto-compression)
-│   ├── mcp-client.ts           # MCP client manager
-│   ├── todo-manager.ts         # Todo task management
-│   └── todo-reminder.ts        # Todo reminder functionality
-├── tools/                     # Tool implementations
-│   ├── bash.ts                 # Shell command execution
-│   ├── dispatcher.ts           # Tool dispatcher
-│   ├── editText.ts             # Text editing operations
-│   ├── readFile.ts             # File reading operations
-│   ├── todoWrite.ts            # Todo list management tool
-│   ├── tools.ts                # Tool definitions
-│   └── writeFile.ts            # File writing operations
-├── types/                     # TypeScript type definitions
-│   ├── index.ts                # Shared TypeScript interfaces
-│   └── storage.ts              # Storage related type definitions
-├── utils/                     # Utility functions
-│   ├── context-compression.ts  # Context compression core logic
-│   ├── file-helpers.ts         # File utilities
-│   ├── logger.ts               # Logging utilities
-│   ├── storage/                # Storage management
-│   │   ├── history.ts          # Conversation history storage
-│   │   ├── index.ts            # Storage management entry
-│   │   └── log.ts              # Log storage
-│   ├── text-helpers.ts         # Text processing utilities
-│   ├── tokens.ts               # Token counting utilities
-│   └── ui.ts                   # UI utilities (including status bar)
-└── index.ts                   # Main program entry
-```
+For detailed security information, see [Security Documentation](docs/SECURITY.md)
 
 ## Development
 
