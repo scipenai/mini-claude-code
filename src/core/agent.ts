@@ -6,29 +6,48 @@ import { dispatchTool } from '../tools/dispatcher';
 import { logErrorDebug } from '../utils/logger';
 import { ui } from '../utils/ui';
 import { shouldAutoCompact, executeAutoCompact } from '../utils/context-compression';
-import { 
-    incrementRound, 
-    checkAndRemind, 
+import {
+    incrementRound,
+    checkAndRemind,
     consumePendingContextBlocks,
     initializeReminder
 } from './todo-reminder';
 import { anthropic } from './anthropic-client';
+import { getContext, formatContextForPrompt } from './context';
 
 // ---------- System prompt ----------
-const SYSTEM = (
-    `You are a coding agent operating INSIDE the user's repository at ${WORKDIR}.\n` +
-    `Operating System: ${process.platform === 'win32' ? 'Windows' : process.platform === 'darwin' ? 'macOS' : 'Linux'}\n` +
-    `Shell: ${process.platform === 'win32' ? 'PowerShell' : 'bash'}\n` +
-    "Follow this loop strictly: plan briefly → use TOOLS to act directly on files/shell → report concise results.\n" +
-    "Rules:\n" +
-    "- Prefer taking actions with tools (read/write/edit/bash) over long prose.\n" +
-    "- Keep outputs terse. Use bullet lists / checklists when summarizing.\n" +
-    "- Never invent file paths. Ask via reads or list directories first if unsure.\n" +
-    "- For edits, apply the smallest change that satisfies the request.\n" +
-    "- For bash tool: On Windows use PowerShell syntax, on Unix use bash syntax. Avoid destructive or privileged commands; stay inside the workspace.\n" +
-    "- Use the TodoWrite tool to maintain multi-step plans when needed.\n" +
-    "- After finishing, summarize what changed and how to run or test.\n" 
-);
+function getSystemPrompt(): string {
+    const basePrompt = (
+        `You are a coding agent operating INSIDE the user's repository at ${WORKDIR}.\n` +
+        `Operating System: ${process.platform === 'win32' ? 'Windows' : process.platform === 'darwin' ? 'macOS' : 'Linux'}\n` +
+        `Shell: ${process.platform === 'win32' ? 'PowerShell' : 'bash'}\n` +
+        "Follow this loop strictly: check skills → plan briefly → use TOOLS to act directly on files/shell → report concise results.\n" +
+        "\n" +
+        "Skills System:\n" +
+        "- Available skills are listed in the <available_skills> XML element in Project Context section below\n" +
+        "- BEFORE starting complex tasks, check if a relevant skill exists in <available_skills>\n" +
+        "- Each skill in <available_skills> contains a <name>, <description>, and <path> to its SKILL.md file\n" +
+        "- To use a skill, read its SKILL.md file using read_file tool with the <path> from the skill tag\n" +
+        "- Skills provide specialized instructions and best practices - follow them closely\n" +
+        "- Don't read a skill if it's already loaded in your context\n" +
+        "- Skills are especially useful for: PDF/Excel processing, data analysis, code reviews, migrations, etc.\n" +
+        "\n" +
+        "Rules:\n" +
+        "- Prefer taking actions with tools (read/write/edit/bash) over long prose.\n" +
+        "- Keep outputs terse. Use bullet lists / checklists when summarizing.\n" +
+        "- Never invent file paths. Ask via reads or list directories first if unsure.\n" +
+        "- For edits, apply the smallest change that satisfies the request.\n" +
+        "- For bash tool: On Windows use PowerShell syntax, on Unix use bash syntax. Avoid destructive or privileged commands; stay inside the workspace.\n" +
+        "- Use the TodoWrite tool to maintain multi-step plans when needed.\n" +
+        "- After finishing, summarize what changed and how to run or test.\n"
+    );
+
+    // Load and inject project context (AGENTS.md, etc.)
+    const context = getContext();
+    const contextPrompt = formatContextForPrompt(context);
+
+    return basePrompt + contextPrompt;
+}
 
 // Initialize reminder system
 let reminderInitialized = false;
@@ -48,21 +67,21 @@ async function callAnthropicWithRetry(
             return await anthropic.messages.create(params);
         } catch (error: any) {
             // Check if it's a 429 rate limit error
-            const is429 = error?.status === 429 || 
-                          error?.message?.includes('429') ||
-                          error?.message?.includes('Request limit exceeded');
-            
+            const is429 = error?.status === 429 ||
+                error?.message?.includes('429') ||
+                error?.message?.includes('Request limit exceeded');
+
             if (is429 && attempt < maxRetries) {
                 // Calculate exponential backoff delay
                 const delay = baseDelay * Math.pow(2, attempt);
                 const jitter = Math.random() * 1000; // Add jitter to avoid thundering herd
                 const totalDelay = delay + jitter;
-                
+
                 console.log(`\n⚠️  Rate limit exceeded (429). Retrying in ${(totalDelay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})...`);
                 await sleep(totalDelay);
                 continue;
             }
-            
+
             // If not a 429 error or exceeded max retries, throw the error
             throw error;
         }
@@ -83,7 +102,7 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
 
     // Increment conversation round
     incrementRound();
-    
+
     // Check if reminder is needed
     checkAndRemind();
 
@@ -119,7 +138,7 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
         try {
             const res: Anthropic.Message = await callAnthropicWithRetry({
                 model: ANTHROPIC_MODEL,
-                system: SYSTEM,
+                system: getSystemPrompt(),
                 messages: messages,
                 tools: getTools(),
                 max_tokens: 16000,
@@ -165,19 +184,19 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
                     toolUses.map(async (tu) => {
                         const toolName = (tu as any).name;
                         const toolInput = (tu as any).input;
-                        
+
                         ui.printToolUse(toolName, toolInput);
-                        
+
                         const startTime = Date.now();
                         try {
                             const result = await dispatchTool(tu);
                             const duration = Date.now() - startTime;
-                            
+
                             // Extract result message
-                            const resultText = typeof result.content === 'string' 
-                                ? result.content 
+                            const resultText = typeof result.content === 'string'
+                                ? result.content
                                 : 'Done';
-                            
+
                             ui.printToolResult(true, resultText, duration);
                             return result;
                         } catch (error: any) {
@@ -187,17 +206,17 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
                         }
                     })
                 );
-                
+
                 messages.push({ role: "assistant", content: res.content });
                 messages.push({ role: "user", content: results });
-                
+
                 // Update status bar after tools execution
                 if (onStatusUpdate) {
                     console.log(); // Add spacing before status bar update
                     onStatusUpdate();
                     console.log(); // Add spacing after status bar update
                 }
-                
+
                 continue;
             }
 

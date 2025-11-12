@@ -43,7 +43,7 @@ export const ui = {
         console.log(chalk.cyan('═'.repeat(60)) + '\n');
     },
 
-    printHelp() {
+    printHelp(customCommands?: string[]) {
         console.log('\n' + chalk.bold('Available Commands:'));
         console.log(chalk.cyan('  /help    ') + chalk.dim('- Show this help message'));
         console.log(chalk.cyan('  /clear   ') + chalk.dim('- Clear screen'));
@@ -53,7 +53,17 @@ export const ui = {
         console.log(chalk.cyan('  /compact ') + chalk.dim('- Compress conversation to a summary (manual)'));
         console.log(chalk.cyan('  /stats   ') + chalk.dim('- Show context usage statistics'));
         console.log(chalk.cyan('  /todos   ') + chalk.dim('- Show current task list'));
-        console.log(chalk.cyan('  exit/quit') + chalk.dim('- Exit the program'));
+        console.log(chalk.cyan('  /skills  ') + chalk.dim('- Manage and invoke skills (list/read)'));
+        
+        // Show custom commands
+        if (customCommands && customCommands.length > 0) {
+            console.log(chalk.bold('\nAI-Powered Commands:'));
+            for (const cmdName of customCommands) {
+                console.log(chalk.magenta(`  /${cmdName.padEnd(8)}`) + chalk.dim('- AI-assisted command'));
+            }
+        }
+        
+        console.log(chalk.cyan('\n  exit/quit') + chalk.dim('- Exit the program'));
         const autoCompactPercent = Math.round(AUTO_COMPACT_THRESHOLD_RATIO * 100);
         console.log(chalk.dim(`\n💡 Tip: Context will auto-compress at ${autoCompactPercent}% capacity`));
         console.log(chalk.dim('💡 Tip: Use TodoWrite tool for complex multi-step tasks\n'));
