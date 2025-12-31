@@ -8,11 +8,11 @@ Mini Claude Code now includes a real-time status bar that displays key informati
 
 ## Status Bar Components
 
-The status bar displays three key metrics:
+The status bar displays multiple key metrics:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ 🔌 MCP: 3 │ 🟢 Context: 45% │ 💬 Messages: 67                                │
+│ 🔌 MCP: 3 │ 🟢 Context: 45% │ 💬 Msgs: 67 │ 🎯 Skills: 3 │ 🤖 Agents: 2      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -48,7 +48,25 @@ The status bar displays three key metrics:
 **Display**: Total number of messages in conversation history
 
 **Example**:
-- `💬 Messages: 45` - 45 messages in history
+- `💬 Msgs: 45` - 45 messages in history
+
+### 4. Skills Count
+
+**Icon**: 🎯  
+**Color**: Blue  
+**Display**: Number of installed skills (only shown when skills exist)
+
+**Example**:
+- `🎯 Skills: 3` - 3 skills installed
+
+### 5. Agents Count
+
+**Icon**: 🤖  
+**Color**: Blue  
+**Display**: Number of custom agents (only shown when custom agents exist)
+
+**Example**:
+- `🤖 Agents: 2` - 2 custom agents created
 
 ## When Status Bar Appears
 

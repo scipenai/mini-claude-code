@@ -1,6 +1,7 @@
 import { Command } from '../types/command';
 import initCommand from './init';
 import skillsCommand from './skills';
+import agentsCommand from './agents';
 
 /**
  * Built-in commands registry
@@ -9,6 +10,7 @@ import skillsCommand from './skills';
 const BUILT_IN_COMMANDS: Command[] = [
     initCommand,
     skillsCommand,
+    agentsCommand,
 ];
 
 /**

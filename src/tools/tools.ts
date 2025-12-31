@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { mcpClientManager } from '../core/mcp-client';
 import { TODO_STATUSES } from '../core/todo-manager';
+import { taskTool } from './task';
 
 // ---------- Base Tool Definitions ----------
 export const baseTools: Anthropic.Tool[] = [
@@ -124,13 +125,25 @@ export const baseTools: Anthropic.Tool[] = [
 ];
 
 /**
- * Get all available tools (including base tools and MCP tools)
+ * Get base tools for subagents (without Task tool to prevent infinite recursion)
+ * 
+ * Subagents should not be able to spawn more subagents, so they only get base tools.
+ */
+export function getBaseToolsForSubagent(): Anthropic.Tool[] {
+    return [...baseTools];
+}
+
+/**
+ * Get all available tools (including base tools, Task tool, and MCP tools)
  * 
  * This function dynamically combines base tools with MCP tools from connected servers.
  * It should be called each time tools are needed to ensure MCP tools are up-to-date.
  */
 export function getTools(): Anthropic.Tool[] {
     const tools: Anthropic.Tool[] = [...baseTools];
+    
+    // Add Task tool for spawning subagents
+    tools.push(taskTool);
     
     // Add MCP tools
     const mcpTools = mcpClientManager.getAllTools();

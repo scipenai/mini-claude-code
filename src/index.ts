@@ -23,6 +23,8 @@ import {
 import { processUserInput } from './commands/command-processor';
 import { shouldShowOnboarding } from './utils/project-config';
 import { getCommandNames } from './commands/commands';
+import { findAllSkills } from './utils/skills';
+import { getCustomAgentTypeNames } from './core/agent-types';
 
 // Fix Windows console encoding to support UTF-8
 if (process.platform === 'win32') {
@@ -109,7 +111,15 @@ async function main() {
             completed: todoStats.completed,
             in_progress: todoStats.in_progress
         } : undefined;
-        ui.printStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount, todoInfo);
+        
+        // Get skills and custom agents count
+        const skillCount = findAllSkills().length;
+        const agentCount = getCustomAgentTypeNames().length;
+        const extendedStats = (skillCount > 0 || agentCount > 0) 
+            ? { skillCount, agentCount } 
+            : undefined;
+        
+        ui.printStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount, todoInfo, extendedStats);
     };
 
     // Show initial status bar
@@ -373,7 +383,15 @@ async function main() {
                         completed: todoStats.completed,
                         in_progress: todoStats.in_progress
                     } : undefined;
-                    ui.updateStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount, todoInfo);
+                    
+                    // Get skills and custom agents count
+                    const skillCount = findAllSkills().length;
+                    const agentCount = getCustomAgentTypeNames().length;
+                    const extendedStats = (skillCount > 0 || agentCount > 0) 
+                        ? { skillCount, agentCount } 
+                        : undefined;
+                    
+                    ui.updateStatusBar(mcpServerCount, stats.percentUsed, stats.messageCount, todoInfo, extendedStats);
                 }
             });
             

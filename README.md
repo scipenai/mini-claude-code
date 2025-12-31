@@ -152,7 +152,7 @@ Displays real-time status information after each command:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ 🔌 MCP: 2 │ 🟢 Context: 45% │ 💬 Messages: 67                                │
+│ 🔌 MCP: 2 │ 🟢 Context: 45% │ 💬 Msgs: 67 │ 🎯 Skills: 3 │ 🤖 Agents: 2      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -162,6 +162,8 @@ Displays real-time status information after each command:
   - 🟡 Yellow (75-91%): Warning
   - 🔴 Red (92-100%): Critical (auto-compress soon)
 - **Message Count**: Total number of messages in current conversation
+- **Skills Count**: Number of installed skills
+- **Agents Count**: Number of custom agents (created via `/agents`)
 
 For detailed information, please refer to [Status Bar Documentation](docs/STATUS_BAR.md) ([中文](docs/STATUS_BAR_zh.md)).
 
