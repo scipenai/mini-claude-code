@@ -54,6 +54,7 @@ export const ui = {
         console.log(chalk.cyan('  /stats   ') + chalk.dim('- Show context usage statistics'));
         console.log(chalk.cyan('  /todos   ') + chalk.dim('- Show current task list'));
         console.log(chalk.cyan('  /skills  ') + chalk.dim('- Manage and invoke skills (list/read)'));
+        console.log(chalk.cyan('  /agents  ') + chalk.dim('- Manage custom agents (list/create/delete)'));
         
         // Show custom commands
         if (customCommands && customCommands.length > 0) {
@@ -261,8 +262,16 @@ export const ui = {
      * @param mcpServerCount - Number of connected MCP servers
      * @param contextPercent - Context usage percentage (0-100)
      * @param messageCount - Number of messages in history
+     * @param todoStats - Optional todo statistics
+     * @param extendedStats - Optional extended stats (skills, agents)
      */
-    printStatusBar(mcpServerCount: number, contextPercent: number, messageCount: number, todoStats?: { total: number, completed: number, in_progress: number }) {
+    printStatusBar(
+        mcpServerCount: number, 
+        contextPercent: number, 
+        messageCount: number, 
+        todoStats?: { total: number, completed: number, in_progress: number },
+        extendedStats?: { skillCount: number, agentCount: number }
+    ) {
         const terminalWidth = process.stdout.columns || 80;
         
         // MCP status
@@ -286,20 +295,39 @@ export const ui = {
         const contextText = contextColor(`${contextIcon} Context: ${contextPercent}%`);
         
         // Messages count
-        const msgText = chalk.cyan(`💬 Messages: ${messageCount}`);
+        const msgText = chalk.cyan(`💬 Msgs: ${messageCount}`);
+        
+        // Skills and Agents count
+        let skillsText = '';
+        let agentsText = '';
+        if (extendedStats) {
+            const { skillCount, agentCount } = extendedStats;
+            if (skillCount > 0) {
+                skillsText = chalk.blue(`🎯 Skills: ${skillCount}`);
+            }
+            if (agentCount > 0) {
+                agentsText = chalk.blue(`🤖 Agents: ${agentCount}`);
+            }
+        }
         
         // Todo stats (if available)
         let todoText = '';
         if (todoStats && todoStats.total > 0) {
             const todoIcon = '📝';
             const completedRatio = `${todoStats.completed}/${todoStats.total}`;
-            const inProgressText = todoStats.in_progress > 0 ? ` (${todoStats.in_progress} in progress)` : '';
+            const inProgressText = todoStats.in_progress > 0 ? ` (${todoStats.in_progress} active)` : '';
             todoText = chalk.magenta(`${todoIcon} Todo: ${completedRatio}${inProgressText}`);
         }
         
         // Build status bar
         const separator = chalk.dim(' │ ');
         let statusContent = `${mcpText}${separator}${contextText}${separator}${msgText}`;
+        if (skillsText) {
+            statusContent += `${separator}${skillsText}`;
+        }
+        if (agentsText) {
+            statusContent += `${separator}${agentsText}`;
+        }
         if (todoText) {
             statusContent += `${separator}${todoText}`;
         }
@@ -324,14 +352,21 @@ export const ui = {
      * @param contextPercent - Context usage percentage (0-100)
      * @param messageCount - Number of messages in history
      * @param todoStats - Optional todo statistics
+     * @param extendedStats - Optional extended stats (skills, agents)
      */
-    updateStatusBar(mcpServerCount: number, contextPercent: number, messageCount: number, todoStats?: { total: number, completed: number, in_progress: number }) {
+    updateStatusBar(
+        mcpServerCount: number, 
+        contextPercent: number, 
+        messageCount: number, 
+        todoStats?: { total: number, completed: number, in_progress: number },
+        extendedStats?: { skillCount: number, agentCount: number }
+    ) {
         // Move cursor up 3 lines to overwrite previous status bar
         process.stdout.write('\x1b[3A');
         // Clear those lines
         process.stdout.write('\x1b[0J');
         // Print new status bar
-        this.printStatusBar(mcpServerCount, contextPercent, messageCount, todoStats);
+        this.printStatusBar(mcpServerCount, contextPercent, messageCount, todoStats, extendedStats);
     },
 
     /**

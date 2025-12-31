@@ -21,3 +21,28 @@ export interface ContextBlock {
     type: string;
     text: string;
 }
+
+// ---------- Subagent Types ----------
+
+/**
+ * Agent types for subagent system
+ */
+export type AgentType = 'explore' | 'code' | 'plan';
+
+/**
+ * Task input for spawning subagents
+ */
+export interface TaskInput {
+    description: string;  // Short description (3-5 words) for progress display
+    prompt: string;       // Detailed instructions for the subagent
+    agent_type: AgentType;
+}
+
+/**
+ * Agent type configuration
+ */
+export interface AgentTypeConfig {
+    description: string;
+    tools: '*' | string[];
+    prompt: string;
+}

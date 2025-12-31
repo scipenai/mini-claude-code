@@ -14,6 +14,7 @@ import {
 } from './todo-reminder';
 import { anthropic } from './anthropic-client';
 import { getContext, formatContextForPrompt } from './context';
+import { getAgentDescriptions } from './agent-types';
 
 // ---------- System prompt ----------
 function getSystemPrompt(): string {
@@ -32,6 +33,15 @@ function getSystemPrompt(): string {
         "- Don't read a skill if it's already loaded in your context\n" +
         "- Skills are especially useful for: PDF/Excel processing, data analysis, code reviews, migrations, etc.\n" +
         "\n" +
+        "Subagent System (Task Tool):\n" +
+        "You can spawn subagents for complex subtasks using the Task tool. Subagents run in ISOLATED contexts - they don't see your conversation history.\n" +
+        "Agent types:\n" +
+        `${getAgentDescriptions()}\n` +
+        "Use Task for:\n" +
+        "- Exploring large codebases (explore agent reads many files, returns summary)\n" +
+        "- Planning complex changes (plan agent analyzes code, returns strategy)\n" +
+        "- Implementing isolated features (code agent makes changes, returns summary)\n" +
+        "\n" +
         "Rules:\n" +
         "- Prefer taking actions with tools (read/write/edit/bash) over long prose.\n" +
         "- Keep outputs terse. Use bullet lists / checklists when summarizing.\n" +
@@ -39,6 +49,7 @@ function getSystemPrompt(): string {
         "- For edits, apply the smallest change that satisfies the request.\n" +
         "- For bash tool: On Windows use PowerShell syntax, on Unix use bash syntax. Avoid destructive or privileged commands; stay inside the workspace.\n" +
         "- Use the TodoWrite tool to maintain multi-step plans when needed.\n" +
+        "- Use the Task tool to spawn subagents for focused subtasks that need context isolation.\n" +
         "- After finishing, summarize what changed and how to run or test.\n"
     );
 
