@@ -10,7 +10,7 @@
 export type ContentBlock = {
   type: string;
   text?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 /**

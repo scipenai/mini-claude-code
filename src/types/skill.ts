@@ -1,44 +1,43 @@
 /**
- * 技能相关的类型定义
+ * Skill-related type definitions
  */
 
 /**
- * 技能位置类型
+ * Skill location type
  */
 export type SkillLocationType = 'project' | 'global';
 
 /**
- * 技能信息（用于列表显示）
+ * Skill information (for list display)
  */
 export interface Skill {
-    /** 技能名称（目录名） */
+    /** Skill name (directory name) */
     name: string;
-    /** 技能描述（从 YAML frontmatter 提取） */
+    /** Skill description (extracted from YAML frontmatter) */
     description: string;
-    /** 安装位置 */
+    /** Installation location */
     location: SkillLocationType;
-    /** 技能目录完整路径 */
+    /** Full path to skill directory */
     path: string;
 }
 
 /**
- * 技能位置信息（用于读取）
+ * Skill location information (for reading)
  */
 export interface SkillLocation {
-    /** SKILL.md 文件路径 */
+    /** Path to SKILL.md file */
     path: string;
-    /** 技能目录路径 */
+    /** Skill directory path */
     baseDir: string;
-    /** 来源目录（搜索目录之一） */
+    /** Source directory (one of the search directories) */
     source: string;
 }
 
 /**
- * 技能元数据（YAML frontmatter）
+ * Skill metadata (YAML frontmatter)
  */
 export interface SkillMetadata {
     name: string;
     description: string;
     context?: string;
 }
-

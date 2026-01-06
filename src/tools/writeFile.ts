@@ -2,8 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { safePath } from '../utils/file-helpers';
 import { WORKDIR } from '../config/environment';
+import type { WriteFileToolInput } from '../types';
 
-export function runWrite(inputObj: any): string {
+export function runWrite(inputObj: WriteFileToolInput): string {
     const filePath = safePath(inputObj.path);
     const dir = path.dirname(filePath);
     fs.mkdirSync(dir, { recursive: true });

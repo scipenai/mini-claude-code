@@ -1,37 +1,37 @@
 /**
- * 简单的 YAML frontmatter 解析工具
- * 使用正则表达式提取字段，避免引入完整的 YAML 解析器依赖
+ * Simple YAML frontmatter parsing utility
+ * Uses regex to extract fields, avoiding full YAML parser dependency
  */
 
 /**
- * 从 YAML frontmatter 中提取指定字段的值
+ * Extract a specific field value from YAML frontmatter
  * 
- * @param content 文件内容
- * @param field 字段名
- * @returns 字段值，如果未找到则返回空字符串
+ * @param content File content
+ * @param field Field name
+ * @returns Field value, empty string if not found
  */
 export function extractYamlField(content: string, field: string): string {
-    // 匹配 "field: value" 格式
+    // Match "field: value" format
     const match = content.match(new RegExp(`^${field}:\\s*(.+)$`, 'm'));
     return match ? match[1].trim() : '';
 }
 
 /**
- * 检查内容是否包含有效的 YAML frontmatter
+ * Check if content contains valid YAML frontmatter
  * 
- * @param content 文件内容
- * @returns 是否包含有效的 frontmatter
+ * @param content File content
+ * @returns Whether it contains valid frontmatter
  */
 export function hasValidFrontmatter(content: string): boolean {
     return content.trim().startsWith('---');
 }
 
 /**
- * 提取多个字段
+ * Extract multiple fields
  * 
- * @param content 文件内容
- * @param fields 字段名数组
- * @returns 字段值对象
+ * @param content File content
+ * @param fields Array of field names
+ * @returns Object with field values
  */
 export function extractYamlFields(content: string, fields: string[]): Record<string, string> {
     const result: Record<string, string> = {};
@@ -42,4 +42,3 @@ export function extractYamlFields(content: string, fields: string[]): Record<str
     
     return result;
 }
-

@@ -29,19 +29,31 @@ export interface PromptCommand extends BaseCommand {
 }
 
 /**
+ * Command context
+ */
+export interface CommandContext {
+    [key: string]: unknown;
+}
+
+/**
  * Local command - executes synchronously and returns a string result
  */
 export interface LocalCommand extends BaseCommand {
     type: 'local';
-    call(args: string, context?: any): Promise<string>;
+    call(args: string, context?: CommandContext): Promise<string>;
 }
+
+/**
+ * JSX render result
+ */
+export type JSXRenderResult = unknown;
 
 /**
  * Local JSX command - renders React components
  */
 export interface LocalJSXCommand extends BaseCommand {
     type: 'local-jsx';
-    call(onDone: (result?: string) => void, context?: any): Promise<any>;
+    call(onDone: (result?: string) => void, context?: CommandContext): Promise<JSXRenderResult>;
 }
 
 /**

@@ -1,6 +1,7 @@
-import { execSync } from 'child_process';
+import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import { clampText } from '../utils/text-helpers';
 import { WORKDIR } from '../config/environment';
+import type { BashToolInput } from '../types';
 
 /**
  * Dangerous command patterns for Unix-like systems
@@ -203,7 +204,13 @@ function getDangerousCommandError(cmd: string): string {
     return 'Blocked: This command matches a dangerous pattern and is not allowed for safety';
 }
 
-export function runBash(inputObj: any): string {
+interface ExecError extends Error {
+    signal?: string;
+    stderr?: Buffer | string;
+    stdout?: Buffer | string;
+}
+
+export function runBash(inputObj: BashToolInput): string {
     const cmd = inputObj.command || "";
     if (!cmd) throw new Error("missing bash.command");
     
@@ -222,11 +229,12 @@ export function runBash(inputObj: any): string {
             encoding: 'utf-8',
             shell: isWindows ? 'powershell.exe' : undefined,
             windowsHide: true
-        });
+        } as ExecSyncOptionsWithStringEncoding);
         return clampText(result.trim() || "(no output)");
-    } catch (error: any) {
-        if (error.signal === 'SIGTERM') return "(timeout)";
-        const msg = error.stderr?.toString() || error.stdout?.toString() || error.message || "(error)";
+    } catch (error) {
+        const execError = error as ExecError;
+        if (execError.signal === 'SIGTERM') return "(timeout)";
+        const msg = execError.stderr?.toString() || execError.stdout?.toString() || execError.message || "(error)";
         return clampText(msg);
     }
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { input, select } from '@inquirer/prompts';
+import { enhancedInput, ExitSignalError } from './utils/custom-input';
 import { query } from './core/agent';
 import { WORKDIR, VERSION } from './config/environment';
 import { mcpClientManager } from './core/mcp-client';
@@ -25,6 +26,9 @@ import { shouldShowOnboarding } from './utils/project-config';
 import { getCommandNames } from './commands/commands';
 import { findAllSkills } from './utils/skills';
 import { getCustomAgentTypeNames } from './core/agent-types';
+import Anthropic from '@anthropic-ai/sdk';
+import type { Message } from './types';
+import type { SerializedMessage } from './types/storage';
 
 // Fix Windows console encoding to support UTF-8
 if (process.platform === 'win32') {
@@ -39,8 +43,9 @@ async function main() {
     // Initialize storage system
     try {
         initializeStorage();
-    } catch (error: any) {
-        ui.printWarning(`Storage initialization failed: ${error.message}`);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        ui.printWarning(`Storage initialization failed: ${errorMessage}`);
     }
 
     // Initialize MCP client
@@ -52,8 +57,9 @@ async function main() {
         if (serverCount > 0) {
             mcpStatus = `MCP servers connected (${serverCount})`;
         }
-    } catch (error: any) {
-        ui.printWarning(`MCP initialization failed: ${error.message}`);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        ui.printWarning(`MCP initialization failed: ${errorMessage}`);
     }
 
     // Print welcome banner
@@ -68,7 +74,7 @@ async function main() {
     
     ui.printTips();
 
-    const history: any[] = [];
+    const history: Message[] = [];
     
     // Generate log filename (can be changed when resuming a conversation)
     const currentLogName = dateToFilename(new Date());
@@ -127,7 +133,7 @@ async function main() {
 
     while (true) {
         try {
-            const line = await input({
+            const line = await enhancedInput({
                 message: '❯',
             });
 
@@ -226,25 +232,40 @@ async function main() {
                     history.length = 0;
                     
                     // Convert message format
-                    messages.forEach((msg: any) => {
+                    messages.forEach((msg: SerializedMessage) => {
                         if (msg.message) {
-                            history.push({
-                                role: msg.type as 'user' | 'assistant',
-                                content: msg.message.content
-                            });
+                            const content = msg.message.content;
+                            // Convert to compatible format
+                            if (typeof content === 'string') {
+                                history.push({
+                                    role: msg.type as 'user' | 'assistant',
+                                    content: content
+                                });
+                            } else {
+                                // Array content - convert to compatible block types
+                                const convertedContent = content.map(block => ({
+                                    type: block.type || 'text',
+                                    text: block.text || ''
+                                })) as Anthropic.TextBlockParam[];
+                                history.push({
+                                    role: msg.type as 'user' | 'assistant',
+                                    content: convertedContent
+                                });
+                            }
                         }
                     });
 
                     // Update current log path to continue appending to the resumed conversation
-                    currentLogPath = selectedLog.fullPath;
+                    currentLogPath = selectedLog!.fullPath;
 
                     ui.printSuccess(`Loaded ${history.length} messages from conversation`);
-                    console.log(chalk.dim(`First prompt: ${selectedLog.firstPrompt}`));
-                    console.log(chalk.dim(`Last modified: ${new Date(selectedLog.modified).toLocaleString()}`));
+                    console.log(chalk.dim(`First prompt: ${selectedLog!.firstPrompt}`));
+                    console.log(chalk.dim(`Last modified: ${new Date(selectedLog!.modified).toLocaleString()}`));
                     console.log(chalk.green(`✓ New messages will be appended to this conversation\n`));
                     
-                } catch (error: any) {
-                    if (error.name === 'ExitPromptError') {
+                } catch (error) {
+                    const err = error as Error & { name?: string };
+                    if (err.name === 'ExitPromptError') {
                         // User pressed Ctrl+C to cancel
                         ui.printInfo('Resume cancelled');
                     } else {
@@ -313,6 +334,11 @@ async function main() {
             // Handle exit commands
             if (["q", "quit", "exit"].includes(trimmed.toLowerCase())) {
                 console.log('\n👋 Goodbye!\n');
+                // Clean up stdin to allow program exit
+                if (process.stdin.isTTY) {
+                    process.stdin.setRawMode(false);
+                }
+                process.stdin.pause();
                 break;
             }
 
@@ -333,7 +359,7 @@ async function main() {
                 const processed = await processUserInput(trimmed);
                 messagesToQuery = processed.messages;
                 progressMessage = processed.progressMessage;
-            } catch (error: any) {
+            } catch (error) {
                 ui.printError('Command processing failed', error);
                 showStatusBar();
                 continue;
@@ -412,11 +438,22 @@ async function main() {
             console.log(); // Add spacing
             showStatusBar();
 
-        } catch (e: any) {
-            if (e.name === 'ExitPromptError') {
+        } catch (e) {
+            const err = e as Error & { name?: string };
+            if (err.name === 'ExitPromptError') {
                 // User pressed Ctrl+C
                 console.log('\n');
                 continue;
+            }
+            if (e instanceof ExitSignalError || err.name === 'ExitSignalError') {
+                // User pressed Ctrl+D twice
+                console.log('\n👋 Goodbye!\n');
+                // Clean up stdin to allow program exit
+                if (process.stdin.isTTY) {
+                    process.stdin.setRawMode(false);
+                }
+                process.stdin.pause();
+                break;
             }
             ui.printError('An error occurred', e);
         }

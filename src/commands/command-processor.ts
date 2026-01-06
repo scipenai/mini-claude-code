@@ -1,5 +1,6 @@
 import { hasCommand, getCommand } from './commands';
 import Anthropic from '@anthropic-ai/sdk';
+import { processMentions, hasMentions } from '../utils/mention';
 
 /**
  * Process user input and check if it's a command
@@ -16,7 +17,29 @@ export async function processUserInput(input: string): Promise<{
     
     // Check if input starts with /
     if (!trimmed.startsWith('/')) {
-        // Regular user input
+        // Regular user input - check for @ mentions
+        if (hasMentions(trimmed)) {
+            const processed = processMentions(trimmed);
+            const contentParts: Anthropic.TextBlockParam[] = [];
+            
+            // Add system reminder if there are valid mentions
+            if (processed.systemReminder) {
+                contentParts.push({ type: 'text', text: processed.systemReminder });
+            }
+            
+            // Add user's actual input
+            contentParts.push({ type: 'text', text: trimmed });
+            
+            return {
+                isCommand: false,
+                messages: [{
+                    role: 'user',
+                    content: contentParts
+                }]
+            };
+        }
+        
+        // No mentions, regular input
         return {
             isCommand: false,
             messages: [{
@@ -79,8 +102,9 @@ export async function processUserInput(input: string): Promise<{
                     isCommand: true,
                     messages: []
                 };
-            } catch (error: any) {
-                console.error(`Error executing command: ${error.message}`);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`Error executing command: ${errorMessage}`);
                 return {
                     isCommand: true,
                     messages: []

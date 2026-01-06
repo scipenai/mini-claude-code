@@ -44,8 +44,9 @@ export function runTodoWrite(input: TodoWriteInput): string {
         
         return boardView + summary;
         
-    } catch (error: any) {
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         // Return friendly error message
-        return `❌ Failed to update task list: ${error.message}`;
+        return `❌ Failed to update task list: ${errorMessage}`;
     }
 }
