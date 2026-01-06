@@ -8,6 +8,7 @@ import { ANTHROPIC_MODEL, WORKDIR, DEFAULT_CONTEXT_LIMIT, AUTO_COMPACT_THRESHOLD
 import { countTotalTokens, calculateThresholds } from './tokens';
 import { ui } from './ui';
 import { anthropic } from '../core/anthropic-client';
+import type { Message } from '../types';
 
 /**
  * Compression prompt
@@ -58,7 +59,7 @@ Please be thorough and preserve all context needed to continue our work seamless
  * @returns Whether compression is needed
  */
 export function shouldAutoCompact(
-    messages: any[],
+    messages: Message[],
     contextLimit: number = DEFAULT_CONTEXT_LIMIT
 ): boolean {
     // Need at least 3 messages to consider compression
@@ -85,14 +86,14 @@ export function shouldAutoCompact(
  * @returns Compressed message list
  */
 export async function executeAutoCompact(
-    messages: any[],
+    messages: Message[],
     contextLimit: number = DEFAULT_CONTEXT_LIMIT
-): Promise<any[]> {
+): Promise<Message[]> {
     try {
         ui.printInfo('🔄 Context limit approaching, initiating automatic compression...');
         
         // 1. Generate summary request
-        const summaryRequest = {
+        const summaryRequest: Anthropic.MessageParam = {
             role: "user",
             content: [{ type: "text", text: COMPRESSION_PROMPT }]
         };
@@ -105,15 +106,15 @@ export async function executeAutoCompact(
                 `conversation summaries that preserve all essential context for continuing ` +
                 `development work in the project at ${WORKDIR}.`
             ),
-            messages: [...messages, summaryRequest],
+            messages: [...messages as Anthropic.MessageParam[], summaryRequest],
             max_tokens: 8000,
         });
         
         // 3. Extract summary text
         let summaryText = '';
         for (const block of summaryResponse.content) {
-            if ((block as any).type === 'text') {
-                summaryText += (block as any).text;
+            if (block.type === 'text') {
+                summaryText += block.text;
             }
         }
         
@@ -122,7 +123,7 @@ export async function executeAutoCompact(
         }
         
         // 4. Build compressed message list
-        const compactedMessages = [
+        const compactedMessages: Message[] = [
             {
                 role: "user",
                 content: [{
@@ -149,7 +150,7 @@ export async function executeAutoCompact(
         );
         
         return compactedMessages;
-    } catch (error: any) {
+    } catch (error) {
         ui.printError('Failed to compress context', error);
         // If compression fails, return original messages
         return messages;
@@ -163,7 +164,7 @@ export async function executeAutoCompact(
  * @param messages - Current message list
  * @returns Compressed message list
  */
-export async function executeManualCompact(messages: any[]): Promise<any[]> {
+export async function executeManualCompact(messages: Message[]): Promise<Message[]> {
     if (messages.length === 0) {
         ui.printWarning('No conversation history to compress');
         return messages;
@@ -177,7 +178,7 @@ export async function executeManualCompact(messages: any[]): Promise<any[]> {
         ui.printInfo('🔄 Compressing conversation history...');
         
         // 1. Generate summary request
-        const summaryRequest = {
+        const summaryRequest: Anthropic.MessageParam = {
             role: "user",
             content: [{ type: "text", text: COMPRESSION_PROMPT }]
         };
@@ -190,15 +191,15 @@ export async function executeManualCompact(messages: any[]): Promise<any[]> {
                 `conversation summaries that preserve all essential context for continuing ` +
                 `development work in the project at ${WORKDIR}.`
             ),
-            messages: [...messages, summaryRequest],
+            messages: [...messages as Anthropic.MessageParam[], summaryRequest],
             max_tokens: 8000,
         });
         
         // 3. Extract summary text
         let summaryText = '';
         for (const block of summaryResponse.content) {
-            if ((block as any).type === 'text') {
-                summaryText += (block as any).text;
+            if (block.type === 'text') {
+                summaryText += block.text;
             }
         }
         
@@ -207,7 +208,7 @@ export async function executeManualCompact(messages: any[]): Promise<any[]> {
         }
         
         // 4. Build compressed message list
-        const compactedMessages = [
+        const compactedMessages: Message[] = [
             {
                 role: "user",
                 content: [{
@@ -233,10 +234,25 @@ export async function executeManualCompact(messages: any[]): Promise<any[]> {
         );
         
         return compactedMessages;
-    } catch (error: any) {
+    } catch (error) {
         ui.printError('Failed to compress context', error);
         throw error;
     }
+}
+
+/**
+ * Context statistics interface
+ */
+export interface ContextStats {
+    messageCount: number;
+    tokenCount: number;
+    percentage: number;
+    percentUsed: number;
+    isAboveWarningThreshold: boolean;
+    isAboveAutoCompactThreshold: boolean;
+    tokensRemaining: number;
+    contextLimit: number;
+    autoCompactThreshold: number;
 }
 
 /**
@@ -247,9 +263,9 @@ export async function executeManualCompact(messages: any[]): Promise<any[]> {
  * @returns Statistics information object
  */
 export function getContextStats(
-    messages: any[],
+    messages: Message[],
     contextLimit: number = DEFAULT_CONTEXT_LIMIT
-) {
+): ContextStats {
     const tokenCount = countTotalTokens(messages);
     const thresholds = calculateThresholds(tokenCount, contextLimit, AUTO_COMPACT_THRESHOLD_RATIO);
     

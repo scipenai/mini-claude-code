@@ -12,9 +12,10 @@ import {
     consumePendingContextBlocks,
     initializeReminder
 } from './todo-reminder';
-import { anthropic } from './anthropic-client';
+import { callAnthropicWithRetry } from './api-helpers';
 import { getContext, formatContextForPrompt } from './context';
 import { getAgentDescriptions } from './agent-types';
+import type { Message, QueryOptions, ToolUse } from '../types';
 
 // ---------- System prompt ----------
 function getSystemPrompt(): string {
@@ -63,45 +64,8 @@ function getSystemPrompt(): string {
 // Initialize reminder system
 let reminderInitialized = false;
 
-// ---------- Rate limit retry helper ----------
-async function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function callAnthropicWithRetry(
-    params: any,
-    maxRetries: number = 5,
-    baseDelay: number = 1000
-): Promise<Anthropic.Message> {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-            return await anthropic.messages.create(params);
-        } catch (error: any) {
-            // Check if it's a 429 rate limit error
-            const is429 = error?.status === 429 ||
-                error?.message?.includes('429') ||
-                error?.message?.includes('Request limit exceeded');
-
-            if (is429 && attempt < maxRetries) {
-                // Calculate exponential backoff delay
-                const delay = baseDelay * Math.pow(2, attempt);
-                const jitter = Math.random() * 1000; // Add jitter to avoid thundering herd
-                const totalDelay = delay + jitter;
-
-                console.log(`\n⚠️  Rate limit exceeded (429). Retrying in ${(totalDelay / 1000).toFixed(1)}s (attempt ${attempt + 1}/${maxRetries})...`);
-                await sleep(totalDelay);
-                continue;
-            }
-
-            // If not a 429 error or exceeded max retries, throw the error
-            throw error;
-        }
-    }
-    throw new Error('Max retries exceeded for API call');
-}
-
 // ---------- Core loop ----------
-export async function query(messages: any[], opts: any = {}): Promise<any[]> {
+export async function query(messages: Message[], opts: QueryOptions = {}): Promise<Message[]> {
     let spinner: Ora | null = null;
     const onStatusUpdate = opts.onStatusUpdate;
 
@@ -135,7 +99,10 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
         if (lastMessage && lastMessage.role === 'user' && Array.isArray(lastMessage.content)) {
             // Add reminders to user message content
             for (const block of pendingBlocks) {
-                lastMessage.content.push(block);
+                (lastMessage.content as Anthropic.TextBlockParam[]).push({
+                    type: 'text',
+                    text: block.text
+                });
             }
         }
     }
@@ -158,28 +125,28 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
 
             spinner.stop();
 
-            const toolUses: any[] = [];
+            const toolUses: Anthropic.ToolUseBlock[] = [];
             let hasTextOutput = false;
 
             try {
                 for (const block of res.content) {
-                    const btype = (block as any).type;
-                    if (btype === "text") {
-                        const text = (block as any).text || "";
+                    if (block.type === "text") {
+                        const text = block.text || "";
                         if (text.trim()) {
                             ui.printAssistantText(text);
                             hasTextOutput = true;
                         }
                     }
-                    if (btype === "tool_use") {
+                    if (block.type === "tool_use") {
                         toolUses.push(block);
                     }
                 }
-            } catch (err: any) {
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
                 logErrorDebug(
                     "Iterating res.content failed",
                     {
-                        error: err.message,
+                        error: errorMessage,
                         stop_reason: res.stop_reason,
                         content_type: typeof res.content,
                         is_array: Array.isArray(res.content),
@@ -193,8 +160,8 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
                 // Execute tools with visual feedback
                 const results = await Promise.all(
                     toolUses.map(async (tu) => {
-                        const toolName = (tu as any).name;
-                        const toolInput = (tu as any).input;
+                        const toolName = tu.name;
+                        const toolInput = (tu.input || {}) as Record<string, unknown>;
 
                         ui.printToolUse(toolName, toolInput);
 
@@ -210,16 +177,17 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
 
                             ui.printToolResult(true, resultText, duration);
                             return result;
-                        } catch (error: any) {
+                        } catch (error) {
                             const duration = Date.now() - startTime;
-                            ui.printToolResult(false, error.message || 'Execution failed', duration);
+                            const errorMessage = error instanceof Error ? error.message : 'Execution failed';
+                            ui.printToolResult(false, errorMessage, duration);
                             throw error;
                         }
                     })
                 );
 
-                messages.push({ role: "assistant", content: res.content });
-                messages.push({ role: "user", content: results });
+                messages.push({ role: "assistant", content: res.content as Anthropic.ContentBlockParam[] });
+                messages.push({ role: "user", content: results as Anthropic.ToolResultBlockParam[] });
 
                 // Update status bar after tools execution
                 if (onStatusUpdate) {
@@ -231,10 +199,10 @@ export async function query(messages: any[], opts: any = {}): Promise<any[]> {
                 continue;
             }
 
-            messages.push({ role: "assistant", content: res.content });
+            messages.push({ role: "assistant", content: res.content as Anthropic.ContentBlockParam[] });
             return messages;
 
-        } catch (error: any) {
+        } catch (error) {
             if (spinner) {
                 spinner.stop();
             }

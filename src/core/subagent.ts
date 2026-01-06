@@ -16,12 +16,13 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { anthropic } from './anthropic-client';
-import { ANTHROPIC_MODEL, WORKDIR } from '../config/environment';
+import { ANTHROPIC_MODEL } from '../config/environment';
 import { getAgentTypeConfig, getSubagentSystemPrompt, isValidAgentType, getAgentTypeNames } from './agent-types';
 import { getBaseToolsForSubagent } from '../tools/tools';
 import { dispatchToolForSubagent } from '../tools/dispatcher';
+import { callAnthropicWithRetry } from './api-helpers';
 import chalk from 'chalk';
+import type { Message, ToolResult } from '../types';
 
 // ---------- Types ----------
 
@@ -85,41 +86,6 @@ function getToolsForAgent(agentType: string): Anthropic.Tool[] {
     return baseTools.filter(tool => (config.tools as string[]).includes(tool.name));
 }
 
-// ---------- Rate limit retry helper ----------
-
-async function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function callAnthropicWithRetry(
-    params: any,
-    maxRetries: number = 5,
-    baseDelay: number = 1000
-): Promise<Anthropic.Message> {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-            return await anthropic.messages.create(params);
-        } catch (error: any) {
-            const is429 = error?.status === 429 ||
-                error?.message?.includes('429') ||
-                error?.message?.includes('Request limit exceeded');
-
-            if (is429 && attempt < maxRetries) {
-                const delay = baseDelay * Math.pow(2, attempt);
-                const jitter = Math.random() * 1000;
-                const totalDelay = delay + jitter;
-                
-                // Don't spam progress line with retry messages
-                await sleep(totalDelay);
-                continue;
-            }
-
-            throw error;
-        }
-    }
-    throw new Error('Max retries exceeded for API call');
-}
-
 // ---------- Subagent Execution ----------
 
 /**
@@ -149,7 +115,7 @@ export async function runTask(input: TaskInput): Promise<string> {
 
     // ISOLATED message history - this is the key!
     // The subagent starts fresh, doesn't see parent's conversation
-    const messages: any[] = [
+    const messages: Message[] = [
         { role: 'user', content: prompt }
     ];
 
@@ -167,13 +133,16 @@ export async function runTask(input: TaskInput): Promise<string> {
     try {
         // Run the agent loop (silently - don't print to main chat)
         while (true) {
-            const response = await callAnthropicWithRetry({
-                model: ANTHROPIC_MODEL,
-                system: systemPrompt,
-                messages,
-                tools,
-                max_tokens: 8000,
-            });
+            const response = await callAnthropicWithRetry(
+                {
+                    model: ANTHROPIC_MODEL,
+                    system: systemPrompt,
+                    messages,
+                    tools,
+                    max_tokens: 8000,
+                },
+                { verbose: false } // Silent mode for subagents
+            );
 
             // Check if we should continue
             if (response.stop_reason !== 'tool_use') {
@@ -182,8 +151,8 @@ export async function runTask(input: TaskInput): Promise<string> {
 
                 // Extract and return only the final text
                 for (const block of response.content) {
-                    if ((block as any).type === 'text') {
-                        return (block as any).text || '(subagent returned no text)';
+                    if (block.type === 'text') {
+                        return block.text || '(subagent returned no text)';
                     }
                 }
                 return '(subagent returned no text)';
@@ -191,13 +160,12 @@ export async function runTask(input: TaskInput): Promise<string> {
 
             // Extract tool calls
             const toolCalls = response.content.filter(
-                (block: any) => block.type === 'tool_use'
+                (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
             );
 
-            const results: any[] = [];
+            const results: ToolResult[] = [];
 
-            for (const tc of toolCalls) {
-                const toolUse = tc as any;
+            for (const toolUse of toolCalls) {
                 progress.toolCount++;
                 updateProgress(progress);
 
@@ -212,12 +180,13 @@ export async function runTask(input: TaskInput): Promise<string> {
             }
 
             // Add assistant response and tool results to history
-            messages.push({ role: 'assistant', content: response.content });
-            messages.push({ role: 'user', content: results });
+            messages.push({ role: 'assistant', content: response.content as Anthropic.ContentBlockParam[] });
+            messages.push({ role: 'user', content: results as Anthropic.ToolResultBlockParam[] });
         }
-    } catch (error: any) {
+    } catch (error) {
         finishProgress(progress);
-        return `Error in subagent execution: ${error.message}`;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return `Error in subagent execution: ${errorMessage}`;
     }
 }
 

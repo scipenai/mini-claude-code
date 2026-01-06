@@ -1,5 +1,15 @@
 import chalk from 'chalk';
 import { AUTO_COMPACT_THRESHOLD_RATIO } from '../config/environment';
+import type { Message, DisplayToolInput, TodoStats, ExtendedStats } from '../types';
+import { TODO_BOARD } from '../core/todo-manager';
+
+/**
+ * Content block interface for extraction
+ */
+interface ExtractableBlock {
+    type?: string;
+    text?: string;
+}
 
 /**
  * UI utilities for terminal output formatting
@@ -67,11 +77,12 @@ export const ui = {
         console.log(chalk.cyan('\n  exit/quit') + chalk.dim('- Exit the program'));
         const autoCompactPercent = Math.round(AUTO_COMPACT_THRESHOLD_RATIO * 100);
         console.log(chalk.dim(`\n💡 Tip: Context will auto-compress at ${autoCompactPercent}% capacity`));
-        console.log(chalk.dim('💡 Tip: Use TodoWrite tool for complex multi-step tasks\n'));
+        console.log(chalk.dim('💡 Tip: Use TodoWrite tool for complex multi-step tasks'));
+        console.log(chalk.dim('💡 Tip: Type @ to reference files/folders in your workspace\n'));
     },
 
     printTips() {
-        console.log(chalk.dim('💡 Tip: Type /help for help, or exit/quit to leave\n'));
+        console.log(chalk.dim('💡 Tip: Type /help for help, @ to mention files, or exit/quit to leave\n'));
     },
 
     printUserInput(message: string) {
@@ -88,7 +99,7 @@ export const ui = {
         }
     },
 
-    printToolUse(toolName: string, toolInput: any) {
+    printToolUse(toolName: string, toolInput: DisplayToolInput | Record<string, unknown>) {
         console.log(chalk.yellow(`\n${this.icons.tool} Executing: `) + chalk.bold(toolName));
         
         // Format tool input nicely
@@ -115,10 +126,11 @@ export const ui = {
         }
     },
 
-    printError(message: string, error?: any) {
+    printError(message: string, error?: unknown) {
         console.log(chalk.red.bold(`\n${this.icons.error} Error: `) + message);
-        if (error && error.message) {
-            const formatted = this.formatLongOutput(error.message, 20); // Max 20 lines for errors
+        if (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const formatted = this.formatLongOutput(errorMessage, 20); // Max 20 lines for errors
             console.log(chalk.red(formatted.content));
             if (formatted.truncated) {
                 console.log(chalk.dim(`   ... (${formatted.hiddenLines} more lines hidden)`));
@@ -138,14 +150,17 @@ export const ui = {
         console.log(chalk.blue(`\n${this.icons.info} `) + message);
     },
 
-    printHistory(history: any[]) {
+    printHistory(history: Message[]) {
         console.log(chalk.bold('\nConversation History:\n'));
         
         let userMsgCount = 0;
         for (const msg of history) {
             if (msg.role === 'user') {
                 userMsgCount++;
-                const content = this.extractTextFromContent(msg.content);
+                const msgContent = msg.content;
+                const content = typeof msgContent === 'string' 
+                    ? msgContent 
+                    : this.extractTextFromContent(msgContent as ExtractableBlock[]);
                 console.log(chalk.cyan(`${userMsgCount}. ${this.icons.user} User: `) + chalk.dim(this.truncate(content, 80)));
             }
         }
@@ -157,19 +172,20 @@ export const ui = {
     },
 
     // Helper methods
-    formatToolInput(input: any): string {
+    formatToolInput(input: DisplayToolInput | Record<string, unknown> | null | undefined): string {
         if (!input) return '';
         
         try {
+            const typedInput = input as DisplayToolInput;
             // For common tools, show key parameters
-            if (input.path || input.file_path || input.target_file) {
+            if (typedInput.path || typedInput.file_path || typedInput.target_file) {
                 let result = '';
-                const pathKey = input.path || input.file_path || input.target_file;
+                const pathKey = typedInput.path || typedInput.file_path || typedInput.target_file;
                 result += `path: "${pathKey}"`;
                 
-                if (input.content) {
+                if (typedInput.content) {
                     // Show content preview with line count if multi-line
-                    const lines = String(input.content).split('\n');
+                    const lines = String(typedInput.content).split('\n');
                     if (lines.length > 1) {
                         result += `\n   content: (${lines.length} lines)`;
                         result += `\n${lines.slice(0, 5).join('\n')}`;
@@ -177,14 +193,14 @@ export const ui = {
                             result += `\n   ...`;
                         }
                     } else {
-                        result += `\n   content: "${this.truncate(input.content, 200)}"`;
+                        result += `\n   content: "${this.truncate(typedInput.content, 200)}"`;
                     }
                 }
-                if (input.command) {
-                    result += `\n   command: "${input.command}"`;
+                if (typedInput.command) {
+                    result += `\n   command: "${typedInput.command}"`;
                 }
-                if (input.old_string && input.new_string) {
-                    result += `\n   replacing ${this.truncate(input.old_string, 50)} with ${this.truncate(input.new_string, 50)}`;
+                if (typedInput.old_string && typedInput.new_string) {
+                    result += `\n   replacing ${this.truncate(typedInput.old_string, 50)} with ${this.truncate(typedInput.new_string, 50)}`;
                 }
                 return result;
             }
@@ -192,12 +208,12 @@ export const ui = {
             // For other tools, show formatted JSON
             const json = JSON.stringify(input, null, 2);
             return json;
-        } catch (e) {
+        } catch {
             return String(input);
         }
     },
 
-    extractTextFromContent(content: any): string {
+    extractTextFromContent(content: string | ExtractableBlock[]): string {
         if (typeof content === 'string') {
             return content;
         }
@@ -269,8 +285,8 @@ export const ui = {
         mcpServerCount: number, 
         contextPercent: number, 
         messageCount: number, 
-        todoStats?: { total: number, completed: number, in_progress: number },
-        extendedStats?: { skillCount: number, agentCount: number }
+        todoStats?: TodoStats,
+        extendedStats?: ExtendedStats
     ) {
         const terminalWidth = process.stdout.columns || 80;
         
@@ -358,8 +374,8 @@ export const ui = {
         mcpServerCount: number, 
         contextPercent: number, 
         messageCount: number, 
-        todoStats?: { total: number, completed: number, in_progress: number },
-        extendedStats?: { skillCount: number, agentCount: number }
+        todoStats?: TodoStats,
+        extendedStats?: ExtendedStats
     ) {
         // Move cursor up 3 lines to overwrite previous status bar
         process.stdout.write('\x1b[3A');
@@ -373,7 +389,7 @@ export const ui = {
      * Print todo list with formatted display
      * @param todoBoard - Todo board instance
      */
-    printTodoBoard(todoBoard: any) {
+    printTodoBoard(todoBoard: typeof TODO_BOARD) {
         const rendered = todoBoard.render();
         if (rendered) {
             console.log('\n' + rendered + '\n');

@@ -10,6 +10,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getAgentDescriptions, getAgentTypeNames } from '../core/agent-types';
 import { runTask, TaskInput } from '../core/subagent';
 
+// Re-export TaskInput for dispatcher
+export type { TaskInput };
+
 // ---------- Task Tool Definition ----------
 
 export const taskTool: Anthropic.Tool = {

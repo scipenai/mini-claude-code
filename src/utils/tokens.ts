@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_CONTEXT_LIMIT, AUTO_COMPACT_THRESHOLD_RATIO } from '../config/environment';
+import type { Message } from '../types';
 
 /**
  * Estimate the number of tokens in text
@@ -19,12 +20,22 @@ export function estimateTokens(text: string): number {
 }
 
 /**
+ * Content block interface for token counting
+ */
+interface TokenCountBlock {
+    type: string;
+    text?: string;
+    input?: unknown;
+    content?: unknown;
+}
+
+/**
  * Count tokens in message content
  * 
  * @param content - Message content (can be string or content array)
  * @returns Estimated token count
  */
-export function countMessageTokens(content: any): number {
+export function countMessageTokens(content: string | TokenCountBlock[]): number {
     if (typeof content === 'string') {
         return estimateTokens(content);
     }
@@ -57,16 +68,34 @@ export function countMessageTokens(content: any): number {
  * @param messages - Message list
  * @returns Total token count
  */
-export function countTotalTokens(messages: any[]): number {
+export function countTotalTokens(messages: Message[]): number {
     let total = 0;
     
     for (const message of messages) {
         if (message.role && message.content) {
-            total += countMessageTokens(message.content);
+            const content = message.content;
+            if (typeof content === 'string') {
+                total += countMessageTokens(content);
+            } else if (Array.isArray(content)) {
+                total += countMessageTokens(content as TokenCountBlock[]);
+            }
         }
     }
     
     return total;
+}
+
+/**
+ * Threshold calculation result
+ */
+export interface ThresholdInfo {
+    isAboveAutoCompactThreshold: boolean;
+    isAboveWarningThreshold: boolean;
+    percentage: number;
+    percentUsed: number;
+    tokensRemaining: number;
+    contextLimit: number;
+    autoCompactThreshold: number;
 }
 
 /**
@@ -81,12 +110,16 @@ export function calculateThresholds(
     tokenCount: number,
     contextLimit: number = DEFAULT_CONTEXT_LIMIT,
     thresholdRatio: number = AUTO_COMPACT_THRESHOLD_RATIO
-) {
+): ThresholdInfo {
     const autoCompactThreshold = Math.floor(contextLimit * thresholdRatio);
+    const percentage = Math.round((tokenCount / contextLimit) * 100);
+    const warningThreshold = 70; // Warning at 70%
     
     return {
         isAboveAutoCompactThreshold: tokenCount >= autoCompactThreshold,
-        percentUsed: Math.round((tokenCount / contextLimit) * 100),
+        isAboveWarningThreshold: percentage >= warningThreshold,
+        percentage,
+        percentUsed: percentage,
         tokensRemaining: Math.max(0, autoCompactThreshold - tokenCount),
         contextLimit,
         autoCompactThreshold,

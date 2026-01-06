@@ -10,14 +10,16 @@ import { VERSION } from '../config/environment';
 declare const console: Console;
 declare const process: NodeJS.Process;
 
+export interface MCPToolInputSchema {
+    type: string;
+    properties?: Record<string, unknown>;
+    required?: string[];
+}
+
 export interface MCPTool {
     name: string;
     description?: string;
-    inputSchema: {
-        type: string;
-        properties?: Record<string, any>;
-        required?: string[];
-    };
+    inputSchema: MCPToolInputSchema;
 }
 
 export interface MCPClientConnection {
@@ -48,9 +50,10 @@ export class MCPClientManager {
         for (const config of serverConfigs) {
             try {
                 await this.connectToServer(config);
-            } catch (error: any) {
-                console.error(`❌ Failed to connect to MCP server "${config.name}":`, error.message);
-                logErrorDebug(`Failed to connect to MCP server: ${config.name}`, error);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`❌ Failed to connect to MCP server "${config.name}":`, errorMessage);
+                logErrorDebug(`Failed to connect to MCP server: ${config.name}`, { error: errorMessage });
             }
         }
 
@@ -116,10 +119,10 @@ export class MCPClientManager {
 
         // Get the list of tools provided by the server
         const toolsResult = await client.listTools();
-        const tools = toolsResult.tools.map((tool: any) => ({
+        const tools: MCPTool[] = toolsResult.tools.map((tool) => ({
             name: `${config.name}__${tool.name}`,
             description: tool.description || '',
-            inputSchema: tool.inputSchema || { type: 'object' },
+            inputSchema: (tool.inputSchema || { type: 'object' }) as MCPToolInputSchema,
         }));
 
         this.connections.set(config.name, {
@@ -148,12 +151,12 @@ export class MCPClientManager {
     /**
      * Call an MCP tool
      */
-    async callTool(toolName: string, args: any): Promise<any> {
+    async callTool(toolName: string, args: Record<string, unknown>): Promise<string> {
         // Parse tool name (format: serverName__toolName)
         const [serverName, ...toolNameParts] = toolName.split('__');
         const actualToolName = toolNameParts.join('__');
 
-        const connection = this.connections.get(serverName);
+        const connection = this.connections.get(serverName!);
         if (!connection) {
             throw new Error(`MCP server "${serverName}" is not connected`);
         }
@@ -166,17 +169,22 @@ export class MCPClientManager {
 
             // Process result
             if (Array.isArray(result.content)) {
-                return result.content.map((item: any) => {
+                interface MCPContentItem {
+                    type: string;
+                    text?: string;
+                }
+                return (result.content as MCPContentItem[]).map((item) => {
                     if (item.type === 'text') {
-                        return item.text;
+                        return item.text || '';
                     }
                     return JSON.stringify(item);
                 }).join('\n');
             }
 
             return JSON.stringify(result.content);
-        } catch (error: any) {
-            throw new Error(`Failed to call MCP tool (${toolName}): ${error.message}`);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to call MCP tool (${toolName}): ${errorMessage}`);
         }
     }
 
@@ -188,7 +196,8 @@ export class MCPClientManager {
             try {
                 await connection.client.close();
             } catch (error) {
-                logErrorDebug(`Error closing connection to ${connection.serverName}`, error);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logErrorDebug(`Error closing connection to ${connection.serverName}`, { error: errorMessage });
             }
         }
         this.connections.clear();

@@ -1,7 +1,8 @@
 import fs from 'fs';
 import { safePath } from '../utils/file-helpers';
+import type { EditTextToolInput } from '../types';
 
-export function runEdit(inputObj: any): string {
+export function runEdit(inputObj: EditTextToolInput): string {
     const filePath = safePath(inputObj.path);
     let text = fs.readFileSync(filePath, 'utf-8');
     const action = inputObj.action;

@@ -90,8 +90,9 @@ function handleRead(skillName: string): string {
         output += `Skill read: ${skillName}`;
 
         return output;
-    } catch (error: any) {
-        return `Error: Failed to read skill file\n${error.message}`;
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return `Error: Failed to read skill file\n${errorMessage}`;
     }
 }
 

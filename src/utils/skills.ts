@@ -1,5 +1,5 @@
 /**
- * 技能发现和查找核心逻辑
+ * Skill discovery and lookup core logic
  */
 
 import { existsSync, readdirSync, readFileSync } from 'fs';
@@ -9,43 +9,43 @@ import { extractYamlField } from './yaml';
 import type { Skill, SkillLocation } from '../types/skill';
 
 /**
- * 查找所有已安装的技能
+ * Find all installed skills
  * 
- * 扫描所有搜索目录，发现并返回技能信息
- * 使用去重策略：高优先级目录的同名技能会覆盖低优先级的
+ * Scans all search directories and returns skill information
+ * Uses deduplication strategy: higher priority directories override lower priority ones
  * 
- * @returns 技能数组
+ * @returns Array of skills
  */
 export function findAllSkills(): Skill[] {
     const skills: Skill[] = [];
-    const seen = new Set<string>();  // 用于去重
+    const seen = new Set<string>();  // For deduplication
     const dirs = getSearchDirs();
 
     for (const dir of dirs) {
-        // 跳过不存在的目录
+        // Skip non-existent directories
         if (!existsSync(dir)) {
             continue;
         }
 
-        // 读取目录内容
+        // Read directory contents
         const entries = readdirSync(dir, { withFileTypes: true });
 
         for (const entry of entries) {
-            // 只处理目录
+            // Only process directories
             if (!entry.isDirectory()) {
                 continue;
             }
 
-            // 去重检查：高优先级的技能已经被记录
+            // Deduplication check: higher priority skill already recorded
             if (seen.has(entry.name)) {
                 continue;
             }
 
-            // 检查是否包含 SKILL.md 文件
+            // Check if it contains SKILL.md file
             const skillPath = join(dir, entry.name, 'SKILL.md');
             if (existsSync(skillPath)) {
                 try {
-                    // 读取文件内容并提取元数据
+                    // Read file content and extract metadata
                     const content = readFileSync(skillPath, 'utf-8');
                     const description = extractYamlField(content, 'description') || 'No description';
                     const location = isProjectLocal(dir) ? 'project' : 'global';
@@ -57,10 +57,10 @@ export function findAllSkills(): Skill[] {
                         path: join(dir, entry.name),
                     });
 
-                    // 标记为已见
+                    // Mark as seen
                     seen.add(entry.name);
                 } catch (error) {
-                    // 跳过无法读取的技能
+                    // Skip skills that cannot be read
                     console.error(`Warning: Failed to read skill at ${skillPath}`);
                 }
             }
@@ -71,12 +71,12 @@ export function findAllSkills(): Skill[] {
 }
 
 /**
- * 查找指定名称的技能
+ * Find a skill by name
  * 
- * 按优先级顺序搜索，返回第一个匹配的技能
+ * Searches in priority order, returns first match
  * 
- * @param skillName 技能名称
- * @returns 技能位置信息，如果未找到则返回 null
+ * @param skillName Skill name
+ * @returns Skill location info, null if not found
  */
 export function findSkill(skillName: string): SkillLocation | null {
     const dirs = getSearchDirs();
@@ -86,21 +86,21 @@ export function findSkill(skillName: string): SkillLocation | null {
         
         if (existsSync(skillPath)) {
             return {
-                path: skillPath,                    // SKILL.md 的完整路径
-                baseDir: join(dir, skillName),      // 技能目录路径
-                source: dir,                        // 来源目录
+                path: skillPath,                    // Full path to SKILL.md
+                baseDir: join(dir, skillName),      // Skill directory path
+                source: dir,                        // Source directory
             };
         }
     }
 
-    return null;  // 未找到
+    return null;  // Not found
 }
 
 /**
- * 格式化技能列表输出
+ * Format skill list output
  * 
- * @param skills 技能数组
- * @returns 格式化的字符串
+ * @param skills Array of skills
+ * @returns Formatted string
  */
 export function formatSkillsList(skills: Skill[]): string {
     if (skills.length === 0) {
@@ -110,18 +110,18 @@ export function formatSkillsList(skills: Skill[]): string {
     let output = 'Available Skills:\n';
     
     for (const skill of skills) {
-        // 计算名称的填充长度（对齐显示）
+        // Calculate name padding for alignment
         const namePadding = ' '.repeat(Math.max(0, 25 - skill.name.length));
         output += `\n  ${skill.name}${namePadding}(${skill.location})\n`;
         
-        // 截断过长的描述
+        // Truncate long descriptions
         const desc = skill.description.length > 80 
             ? skill.description.slice(0, 77) + '...'
             : skill.description;
         output += `    ${desc}\n`;
     }
 
-    // 统计信息
+    // Summary statistics
     const projectCount = skills.filter(s => s.location === 'project').length;
     const globalCount = skills.filter(s => s.location === 'global').length;
     output += `\nSummary: ${projectCount} project, ${globalCount} global (${skills.length} total)`;
@@ -130,17 +130,17 @@ export function formatSkillsList(skills: Skill[]): string {
 }
 
 /**
- * 生成技能的 XML 表示（用于 system prompt）
+ * Generate XML representation of skills (for system prompt)
  * 
- * @param skills 技能数组
- * @returns XML 字符串
+ * @param skills Array of skills
+ * @returns XML string
  */
 export function generateSkillsXml(skills: Skill[]): string {
     if (skills.length === 0) {
         return '';
     }
 
-    // 生成每个技能的 XML 标签
+    // Generate XML tag for each skill
     const skillTags = skills
         .map(
             (s) => `<skill>
@@ -152,7 +152,7 @@ export function generateSkillsXml(skills: Skill[]): string {
         )
         .join('\n\n');
 
-    // 完整的 XML 结构
+    // Complete XML structure
     return `<skills_system priority="1">
 
 ## Available Skills
@@ -182,4 +182,3 @@ ${skillTags}
 
 </skills_system>`;
 }
-

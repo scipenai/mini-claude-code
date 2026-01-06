@@ -87,9 +87,20 @@ export function readLog(path: string): SerializedMessage[] {
 }
 
 /**
+ * Log message input type
+ */
+export interface LogMessageInput {
+  type: 'user' | 'assistant';
+  message: {
+    role: string;
+    content: unknown;
+  };
+}
+
+/**
  * Append to log
  */
-export function appendToLog(path: string, message: any): void {
+export function appendToLog(path: string, message: LogMessageInput): void {
   // 1. Ensure directory exists
   const dir = dirname(path);
   if (!ensureDir(dir)) {
@@ -105,8 +116,11 @@ export function appendToLog(path: string, message: any): void {
   const messages = readLog(path);
 
   // 4. Add metadata
-  const messageWithMetadata = {
-    ...message,
+  const messageWithMetadata: SerializedMessage = {
+    type: message.type,
+    message: {
+      content: message.message.content as string | Array<{ type: string; text?: string; [key: string]: unknown }>,
+    },
     cwd: WORKDIR,
     sessionId: SESSION_ID,
     timestamp: new Date().toISOString(),
@@ -227,7 +241,14 @@ export async function loadLogList(
                 firstPrompt = content;
               } else if (Array.isArray(content)) {
                 // Handle array format content
-                const textBlock = content.find((block: any) => block.type === 'text' || block.text);
+                interface ContentBlockWithText {
+                  type?: string;
+                  text?: string;
+                  content?: string;
+                }
+                const textBlock = (content as ContentBlockWithText[]).find(
+                  (block) => block.type === 'text' || block.text
+                );
                 if (textBlock) {
                   firstPrompt = textBlock.text || textBlock.content || 'No prompt';
                 }
